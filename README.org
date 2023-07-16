@@ -1,27 +1,25 @@
-#+title: Title
+#+title: snc
 #+options: toc:nil
 #+startup: showeverything
 #+export_file_name: ./doc/README.md
 #+author: 8dcc
 
 #+begin_comment
-*TODO*: Change project-name and title
-*TODO*: Change project name for Doxygen
 *TODO*: Export README.org to markdown for Doxygen
 #+end_comment
 
-*Short description.*
+*Simple NetCat.*
 
 #+TOC: headlines 2
 
 * Description
-Long description.
+Simple port of the NetCat command in C using sockets.
 
 * Building
 
 #+begin_src console
-$ git clone https://github.com/8dcc/project-name
-$ cd project-name
+$ git clone https://github.com/8dcc/snc
+$ cd snc
 $ make
 ...
 #+end_src
@@ -29,6 +27,6 @@ $ make
 * Usage
 
 #+begin_src console
-$ ./project-name.out --help
+$ ./snc --help
 ...
 #+end_src
