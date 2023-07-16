@@ -17,7 +17,8 @@ enum modes {
     CONNECT = 2,
 };
 
-#define MSG "Ping"
+#define MSG  "Ping"
+#define PORT 1337
 
 int arg_check(int argc, char** argv) {
     if (argc < 2)
@@ -38,6 +39,45 @@ int arg_check(int argc, char** argv) {
     }
 }
 
+int snc_listen(void) {
+    /*
+     * Create the socket descriptor for listening.
+     *
+     * domain:   AF_INET     (IPv4 address)
+     * type:     SOCK_STREAM (TCP, etc.)
+     * protocol: 0           (Let the kernel decide, usually TPC)
+     */
+    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    /* Declare and clear struct */
+    sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(sockaddr_in));
+
+    /* Fill the struct we just declared.
+     * See: https://www.gta.ufrj.br/ensino/eel878/sockets/sockaddr_inman.html */
+    server_addr.sin_family      = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* htonl -> uint32_t */
+    server_addr.sin_port        = htons(PORT);       /* htons -> uint16_t */
+
+    /* Bind socket file descriptor to the struct we just filled (but casted) */
+    bind(listen_fd, (sockaddr*)&server_addr, sizeof(sockaddr));
+
+    /* 10 is the max number of connections to queue */
+    listen(listen_fd, 10);
+
+    int conn_fd = 0;
+    for (;;) {
+        conn_fd = accept(listen_fd, (sockaddr*)NULL, NULL);
+
+        write(conn_fd, MSG, strlen(MSG));
+
+        close(conn_fd);
+        sleep(1);
+    }
+
+    return 0;
+}
+
 /**
  * @brief Entry point of the program
  * @param argc Number of arguments
@@ -56,44 +96,11 @@ int main(int argc, char** argv) {
     }
 
     /* FIXME */
-    if (mode == CONNECT) {
+    if (mode == LISTEN) {
+        snc_listen();
+    } else {
         fprintf(stderr, "WIP.\n");
         return 1;
-    }
-
-    /*
-     * Create the socket descriptor for listening.
-     *
-     * domain:   AF_INET     (IPv4 address)
-     * type:     SOCK_STREAM (TCP, etc.)
-     * protocol: 0           (Let the kernel decide, usually TPC)
-     */
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    /* Declare and clear struct */
-    sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(sockaddr_in));
-
-    /* Fill the struct we just declared.
-     * See: https://www.gta.ufrj.br/ensino/eel878/sockets/sockaddr_inman.html */
-    server_addr.sin_family      = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* htonl -> uint32_t */
-    server_addr.sin_port        = htons(1337);       /* htons -> uint16_t */
-
-    /* Bind socket file descriptor to the struct we just filled (but casted) */
-    bind(listen_fd, (sockaddr*)&server_addr, sizeof(sockaddr));
-
-    /* 10 is the max number of connections to queue */
-    listen(listen_fd, 10);
-
-    int conn_fd = 0;
-    for (;;) {
-        conn_fd = accept(listen_fd, (sockaddr*)NULL, NULL);
-
-        write(conn_fd, MSG, strlen(MSG));
-
-        close(conn_fd);
-        sleep(1);
     }
 
     return 0;
