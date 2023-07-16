@@ -17,7 +17,6 @@ enum modes {
     CONNECT = 2,
 };
 
-#define MSG     "Ping.\n"
 #define PORT    1337
 #define MAX_BUF 256 /* Max size of message/response */
 
@@ -84,9 +83,15 @@ int snc_listen(void) {
 
     int conn_fd = accept(listen_fd, NULL, NULL);
 
-    write(conn_fd, MSG, strlen(MSG));
+    char c = 0;
+    while (c != EOF) {
+        read(conn_fd, &c, 1);
+        putchar(c);
+    }
 
     close(conn_fd);
+    close(listen_fd);
+
     return 0;
 }
 
@@ -113,12 +118,15 @@ int snc_connect(char* ip) {
         return 1;
     }
 
-    char response[MAX_BUF];
-    recv(socket_fd, response, sizeof(response), 0);
+    char c;
+    while ((c = getchar()) != EOF) {
+        write(socket_fd, &c, 1);
+    }
 
-    printf("%s", response);
-
+    /* Need to send EOF so it knows when to stop */
+    write(socket_fd, &c, 1);
     close(socket_fd);
+
     return 0;
 }
 
