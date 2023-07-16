@@ -84,10 +84,8 @@ int snc_listen(void) {
     int conn_fd = accept(listen_fd, NULL, NULL);
 
     char c = 0;
-    while (c != EOF) {
-        read(conn_fd, &c, 1);
+    while (read(conn_fd, &c, 1) && c != EOF)
         putchar(c);
-    }
 
     close(conn_fd);
     close(listen_fd);
@@ -119,9 +117,8 @@ int snc_connect(char* ip) {
     }
 
     char c;
-    while ((c = getchar()) != EOF) {
+    while ((c = getchar()) != EOF)
         write(socket_fd, &c, 1);
-    }
 
     /* Need to send EOF so it knows when to stop */
     write(socket_fd, &c, 1);
