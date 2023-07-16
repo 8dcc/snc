@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <unistd.h>    /* sleep, write, close */
+#include <unistd.h>    /* write, close */
 #include <arpa/inet.h> /* htonl, htons */
 #include <sys/socket.h>
 
@@ -17,8 +17,9 @@ enum modes {
     CONNECT = 2,
 };
 
-#define MSG  "Ping"
-#define PORT 1337
+#define MSG     "Ping.\n"
+#define PORT    1337
+#define MAX_BUF 256 /* Max size of message/response */
 
 /**
  * @brief Argument parsing
@@ -30,15 +31,17 @@ int arg_check(int argc, char** argv) {
     if (argc < 2)
         return ERR;
 
-    if (!strcmp(argv[1], "l")) {
+    if (!strcmp(argv[1], "l")) { /* Listen */
         return LISTEN;
-    } else if (!strcmp(argv[1], "c")) {
+    } else if (!strcmp(argv[1], "c")) { /* Connect */
         if (argc < 3) {
             fprintf(stderr, "Not enough arguments for option \"c\".\n");
             return ERR;
         }
 
         return CONNECT;
+    } else if (!strcmp(argv[1], "h")) { /* Help */
+        return ERR;
     } else {
         fprintf(stderr, "Unknown option \"%s\".\n", argv[1]);
         return ERR;
@@ -58,6 +61,10 @@ int snc_listen(void) {
      * protocol: 0           (Let the kernel decide, usually TPC)
      */
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (!listen_fd) {
+        fprintf(stderr, "listen: failed to create socket.\n");
+        return 1;
+    }
 
     /* Declare and clear struct */
     sockaddr_in server_addr;
@@ -75,16 +82,43 @@ int snc_listen(void) {
     /* 10 is the max number of connections to queue */
     listen(listen_fd, 10);
 
-    int conn_fd = 0;
-    for (;;) {
-        conn_fd = accept(listen_fd, (sockaddr*)NULL, NULL);
+    int conn_fd = accept(listen_fd, NULL, NULL);
 
-        write(conn_fd, MSG, strlen(MSG));
+    write(conn_fd, MSG, strlen(MSG));
 
-        close(conn_fd);
-        sleep(1);
+    close(conn_fd);
+    return 0;
+}
+
+int snc_connect(char* ip) {
+    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (!socket_fd) {
+        fprintf(stderr, "connect: failed to create socket.\n");
+        return 1;
     }
 
+    sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(sockaddr_in));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port   = htons(PORT);
+
+    if (!inet_pton(AF_INET, ip, &server_addr.sin_addr)) {
+        fprintf(stderr, "IP error.\n");
+        return 1;
+    }
+
+    if (connect(socket_fd, (sockaddr*)&server_addr, sizeof(sockaddr)) < 0) {
+        fprintf(stderr, "Connection error.\n");
+        return 1;
+    }
+
+    char response[MAX_BUF];
+    recv(socket_fd, response, sizeof(response), 0);
+
+    printf("%s", response);
+
+    close(socket_fd);
     return 0;
 }
 
@@ -99,17 +133,19 @@ int main(int argc, char** argv) {
     if (mode == ERR) {
         fprintf(stderr,
                 "Usage:\n"
+                "    %s h       - Show this help\n"
                 "    %s l       - Start in listen mode\n"
                 "    %s c <IP>  - Connect to specified IP address\n",
-                argv[0], argv[0]);
+                argv[0], argv[0], argv[0]);
         return 1;
     }
 
-    /* FIXME */
     if (mode == LISTEN) {
-        snc_listen();
+        return snc_listen(); /* snc l */
+    } else if (mode == CONNECT) {
+        return snc_connect(argv[2]); /* snc c IP */
     } else {
-        fprintf(stderr, "WIP.\n");
+        fprintf(stderr, "Unknown mode error.\n");
         return 1;
     }
 
