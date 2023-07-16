@@ -3,9 +3,8 @@ CC=gcc
 CFLAGS=-Wall -Wextra
 LDFLAGS=
 
-# TODO: Add object files and rename
 OBJS=obj/main.c.o
-BIN=output.out
+BIN=snc
 
 .PHONY: clean all run
 
