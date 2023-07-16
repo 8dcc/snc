@@ -1,4 +1,9 @@
 
+/**
+ * @todo Handle SIGTERM and close sockets
+ * @todo Multi-directional transfers (l <-> c)
+ * */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
