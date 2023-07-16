@@ -20,6 +20,12 @@ enum modes {
 #define MSG  "Ping"
 #define PORT 1337
 
+/**
+ * @brief Argument parsing
+ * @param argc Number of arguments
+ * @param argv Vector of string arguments
+ * @return Mode or error code
+ */
 int arg_check(int argc, char** argv) {
     if (argc < 2)
         return ERR;
@@ -39,6 +45,10 @@ int arg_check(int argc, char** argv) {
     }
 }
 
+/**
+ * @brief Main function for the "listen" mode
+ * @return Exit code
+ */
 int snc_listen(void) {
     /*
      * Create the socket descriptor for listening.
