@@ -27,6 +27,27 @@ $ make
 * Usage
 
 #+begin_src console
-$ ./snc --help
-...
+$ ./snc h
+Usage:
+    ./snc h       - Show this help
+    ./snc l       - Start in listen mode
+    ./snc c <IP>  - Connect to specified IP address
+#+end_src console
+
+In a terminal:
+
+#+begin_src console
+$ ./snc l  # Start to listen. It will print recieved data
+
+$ ./snc l > output.txt
+#+end_src
+
+In another terminal:
+
+#+begin_src console
+$ ./snc c IP
+Type stuff here!
+It will send it to the listening session.
+
+$ ./snc c IP < input.txt
 #+end_src
