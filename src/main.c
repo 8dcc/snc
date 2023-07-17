@@ -13,6 +13,13 @@
 #include <arpa/inet.h> /* htonl, htons */
 #include <sys/socket.h>
 
+#define LENGTH(arr) (int)(sizeof(arr) / sizeof(arr[0]))
+
+typedef struct {
+    const char* user;
+    const char* real;
+} Alias;
+
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 
@@ -50,6 +57,26 @@ int arg_check(int argc, char** argv) {
         fprintf(stderr, "Unknown option \"%s\".\n", argv[1]);
         return ERR;
     }
+}
+
+/**
+ * @brief Checks the `ip` argument for special values
+ * @details For example `localhost`
+ * @return Exit code
+ */
+const char* check_ip(const char* ip) {
+    Alias special_ips[] = {
+        /* user,        real */
+        { "localhost", "127.0.0.1" },
+    };
+
+    /* Loop through the previous array. If the user used an alias, return the
+     * real one */
+    for (int i = 0; i < LENGTH(special_ips); i++)
+        if (!strcmp(ip, special_ips[i].user))
+            return special_ips[i].real;
+
+    return ip;
 }
 
 /**
@@ -98,7 +125,11 @@ int snc_listen(void) {
     return 0;
 }
 
-int snc_connect(char* ip) {
+/**
+ * @brief Main function for the "connect" mode
+ * @return Exit code
+ */
+int snc_connect(const char* ip) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (!socket_fd) {
         fprintf(stderr, "connect: failed to create socket.\n");
@@ -153,7 +184,7 @@ int main(int argc, char** argv) {
     if (mode == LISTEN) {
         return snc_listen(); /* snc l */
     } else if (mode == CONNECT) {
-        return snc_connect(argv[2]); /* snc c IP */
+        return snc_connect(check_ip(argv[2])); /* snc c IP */
     } else {
         fprintf(stderr, "Unknown mode error.\n");
         return 1;
