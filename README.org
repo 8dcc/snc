@@ -32,7 +32,7 @@ Usage:
     ./snc h       - Show this help
     ./snc l       - Start in listen mode
     ./snc c <IP>  - Connect to specified IP address
-#+end_src console
+#+end_src
 
 In a terminal:
 
