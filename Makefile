@@ -3,21 +3,25 @@ CC=gcc
 CFLAGS=-Wall -Wextra
 LDFLAGS=
 
-OBJS=obj/main.c.o
+OBJ_FILES=main.c.o
+OBJS=$(addprefix obj/, $(OBJ_FILES))
+
+INSTALL_DIR=/usr/local/bin
 BIN=snc
 
-.PHONY: clean all run
+.PHONY: clean all install
 
 # -------------------------------------------
 
 all: $(BIN)
 
-run: $(BIN)
-	./$<
-
 clean:
 	rm -f $(OBJS)
 	rm -f $(BIN)
+
+install: $(BIN)
+	mkdir -p $(INSTALL_DIR)
+	install -m 755 ./$(BIN) $(INSTALL_DIR)/$(BIN)
 
 # -------------------------------------------
 
