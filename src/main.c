@@ -25,10 +25,10 @@ typedef struct {
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 
-enum modes {
-    ERR     = 0,
-    LISTEN  = 1,
-    CONNECT = 2,
+enum EModes {
+    MODE_ERR     = 0,
+    MODE_LISTEN  = 1,
+    MODE_CONNECT = 2,
 };
 
 #define PORT    1337
@@ -42,23 +42,31 @@ enum modes {
  */
 int arg_check(int argc, char** argv) {
     if (argc < 2)
-        return ERR;
+        return MODE_ERR;
 
-    if (!strcmp(argv[1], "l")) { /* Listen */
-        return LISTEN;
-    } else if (!strcmp(argv[1], "c")) { /* Connect */
-        if (argc < 3) {
-            fprintf(stderr, "Not enough arguments for option \"c\".\n");
-            return ERR;
+    for (int i = 0; argv[1][i] != '\0'; i++) {
+        switch (argv[1][i]) {
+            case 'l': /* Listen */
+                return MODE_LISTEN;
+            case 'c': /* Connect */
+                if (argc < 3) {
+                    fprintf(stderr, "Not enough arguments for option \"c\".\n");
+                    return MODE_ERR;
+                }
+
+                return MODE_CONNECT;
+            case 'h': /* Help */
+                return MODE_ERR;
+            case '-': /* "snc -h" -> "snc h" */
+                break;
+            default:
+                fprintf(stderr, "Unknown option \"%s\".\n", argv[1]);
+                return MODE_ERR;
         }
-
-        return CONNECT;
-    } else if (!strcmp(argv[1], "h")) { /* Help */
-        return ERR;
-    } else {
-        fprintf(stderr, "Unknown option \"%s\".\n", argv[1]);
-        return ERR;
     }
+
+    fprintf(stderr, "Not enough arguments.\n");
+    return MODE_ERR;
 }
 
 /**
@@ -173,7 +181,7 @@ int snc_connect(const char* ip) {
  */
 int main(int argc, char** argv) {
     int mode = arg_check(argc, argv);
-    if (mode == ERR) {
+    if (mode == MODE_ERR) {
         fprintf(stderr,
                 "Usage:\n"
                 "    %s h       - Show this help\n"
@@ -183,9 +191,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (mode == LISTEN) {
+    if (mode == MODE_LISTEN) {
         return snc_listen(); /* snc l */
-    } else if (mode == CONNECT) {
+    } else if (mode == MODE_CONNECT) {
         return snc_connect(check_ip(argv[2])); /* snc c IP */
     } else {
         fprintf(stderr, "Unknown mode error.\n");
