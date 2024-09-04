@@ -7,9 +7,15 @@
 #include <unistd.h>    /* write, close */
 #include <arpa/inet.h> /* htonl, htons */
 #include <sys/socket.h>
+#include <ifaddrs.h> /* getifaddrs(), etc. */
+#include <net/if.h>  /* IFF_LOOPBACK */
+#include <netdb.h>   /* getnameinfo(), etc. */
 
 /*----------------------------------------------------------------------------*/
 /* Macros */
+
+/* Comment to disable interface listing on "listen" mode. */
+#define LIST_INTERFACES
 
 #define PORT    1337
 #define MAX_BUF 256 /* Max size of message/response */
@@ -85,6 +91,36 @@ static const char* unalias_ip(const char* ip) {
     return ip;
 }
 
+static inline void list_interfaces(void) {
+    struct ifaddrs* ifaddr;
+    if (getifaddrs(&ifaddr) == -1) {
+        ERR("Failed to list interfaces.");
+        return;
+    }
+
+    fprintf(stderr, "---------------------------\n"
+                    "Listening on any interface:\n");
+
+    for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        /* Ignore non-INET address families and loopback interfaces */
+        if (ifa->ifa_addr->sa_family != AF_INET ||
+            (ifa->ifa_flags & IFF_LOOPBACK) != 0)
+            continue;
+
+        char host[NI_MAXHOST];
+        int code = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host,
+                               NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+        if (code != 0)
+            continue;
+
+        fprintf(stderr, "%s: %s\n", ifa->ifa_name, host);
+    }
+
+    fprintf(stderr, "---------------------------\n");
+
+    freeifaddrs(ifaddr);
+}
+
 /*----------------------------------------------------------------------------*/
 /* Main modes */
 
@@ -102,6 +138,10 @@ static void snc_listen(void) {
         ERR("Failed to create socket.");
         exit(1);
     }
+
+#ifdef LIST_INTERFACES
+    list_interfaces();
+#endif
 
     /* Declare and clear struct */
     struct sockaddr_in server_addr;
