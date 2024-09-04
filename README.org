@@ -27,7 +27,7 @@ Usage:
 In a terminal:
 
 #+begin_src console
-$ ./snc l  # Start to listen. It will print recieved data
+$ ./snc l  # Start to listen. It will print received data.
 
 $ ./snc l > output.txt
 #+end_src
