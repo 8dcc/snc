@@ -16,6 +16,13 @@
 
 #define LENGTH(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
 
+#define ERR(...)                      \
+    do {                              \
+        fprintf(stderr, "snc: ");     \
+        fprintf(stderr, __VA_ARGS__); \
+        fputc('\n', stderr);          \
+    } while (0)
+
 /*----------------------------------------------------------------------------*/
 /* Internal structures and enums */
 
@@ -44,7 +51,7 @@ static EMode get_mode(int argc, char** argv) {
                 return MODE_LISTEN;
             case 'c': /* Connect */
                 if (argc < 3) {
-                    fprintf(stderr, "Not enough arguments for option \"c\".\n");
+                    ERR("Not enough arguments for option \"c\".");
                     return MODE_ERR;
                 }
 
@@ -54,12 +61,12 @@ static EMode get_mode(int argc, char** argv) {
             case '-': /* "snc -h" -> "snc h" */
                 break;
             default:
-                fprintf(stderr, "Unknown option \"%s\".\n", argv[1]);
+                ERR("Unknown option \"%s\".", argv[1]);
                 return MODE_ERR;
         }
     }
 
-    fprintf(stderr, "Not enough arguments.\n");
+    ERR("Not enough arguments.");
     return MODE_ERR;
 }
 
@@ -82,7 +89,7 @@ static const char* unalias_ip(const char* ip) {
 /* Main modes */
 
 /* Main function for the "listen" mode. */
-static int snc_listen(void) {
+static void snc_listen(void) {
     /*
      * Create the socket descriptor for listening.
      *
@@ -92,8 +99,8 @@ static int snc_listen(void) {
      */
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (!listen_fd) {
-        fprintf(stderr, "listen: failed to create socket.\n");
-        return 1;
+        ERR("Failed to create socket.");
+        exit(1);
     }
 
     /* Declare and clear struct */
@@ -122,16 +129,14 @@ static int snc_listen(void) {
 
     close(conn_fd);
     close(listen_fd);
-
-    return 0;
 }
 
 /* Main function for the "connect" mode. See `snc_listen' for more comments. */
-static int snc_connect(const char* ip) {
+static void snc_connect(const char* ip) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (!socket_fd) {
-        fprintf(stderr, "connect: failed to create socket.\n");
-        return 1;
+        ERR("Failed to create socket.");
+        exit(1);
     }
 
     struct sockaddr_in server_addr;
@@ -141,14 +146,14 @@ static int snc_connect(const char* ip) {
     server_addr.sin_port   = htons(PORT);
 
     if (!inet_pton(AF_INET, ip, &server_addr.sin_addr)) {
-        fprintf(stderr, "IP error.\n");
-        return 1;
+        ERR("IP error.");
+        exit(1);
     }
 
     if (connect(socket_fd, (struct sockaddr*)&server_addr,
                 sizeof(struct sockaddr)) < 0) {
-        fprintf(stderr, "Connection error.\n");
-        return 1;
+        ERR("Connection error.");
+        exit(1);
     }
 
     char c;
@@ -158,8 +163,6 @@ static int snc_connect(const char* ip) {
     /* Need to send EOF so it knows when to stop */
     write(socket_fd, &c, 1);
     close(socket_fd);
-
-    return 0;
 }
 
 int main(int argc, char** argv) {
@@ -176,13 +179,15 @@ int main(int argc, char** argv) {
 
     switch (mode) {
         case MODE_LISTEN: /* snc l */
-            return snc_listen();
+            snc_listen();
+            break;
 
         case MODE_CONNECT: /* snc c IP */
-            return snc_connect(unalias_ip(argv[2]));
+            snc_connect(unalias_ip(argv[2]));
+            break;
 
         default:
-            fprintf(stderr, "Fatal: Unhandled mode.\n");
+            ERR("Fatal: Unhandled mode.");
             exit(1);
     }
 
