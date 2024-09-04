@@ -1,10 +1,3 @@
-/**
- * @file   main.c
- * @author 8dcc
- *
- * @todo Handle SIGTERM and close sockets
- * @todo Multi-directional transfers (l <-> c)
- */
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -15,32 +8,33 @@
 #include <arpa/inet.h> /* htonl, htons */
 #include <sys/socket.h>
 
-#define LENGTH(arr) (int)(sizeof(arr) / sizeof(arr[0]))
-
-typedef struct {
-    const char* user;
-    const char* real;
-} Alias;
-
-typedef struct sockaddr sockaddr;
-typedef struct sockaddr_in sockaddr_in;
-
-enum EModes {
-    MODE_ERR     = 0,
-    MODE_LISTEN  = 1,
-    MODE_CONNECT = 2,
-};
+/*----------------------------------------------------------------------------*/
+/* Macros */
 
 #define PORT    1337
 #define MAX_BUF 256 /* Max size of message/response */
 
-/**
- * @brief Argument parsing
- * @param argc Number of arguments
- * @param argv Vector of string arguments
- * @return Mode or error code
- */
-int arg_check(int argc, char** argv) {
+#define LENGTH(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
+
+/*----------------------------------------------------------------------------*/
+/* Internal structures and enums */
+
+typedef struct {
+    const char* alias;
+    const char* real;
+} IpAlias;
+
+typedef enum EMode {
+    MODE_ERR,
+    MODE_LISTEN,
+    MODE_CONNECT,
+} EMode;
+
+/*----------------------------------------------------------------------------*/
+/* Util functions */
+
+/* Get the program mode from the arguments */
+static EMode get_mode(int argc, char** argv) {
     if (argc < 2)
         return MODE_ERR;
 
@@ -69,31 +63,26 @@ int arg_check(int argc, char** argv) {
     return MODE_ERR;
 }
 
-/**
- * @brief Checks the `ip` argument for special values
- * @details For example `localhost`
- * @return Exit code
- */
-const char* check_ip(const char* ip) {
-    Alias special_ips[] = {
-        /* user,        real */
+/* If the specified IP address is an alias (e.g. "localhost"), get the real IP
+ * address associated with it. Otherwise return the argument unchanged.  */
+static const char* unalias_ip(const char* ip) {
+    IpAlias aliases[] = {
+        /* alias,       real */
         { "localhost", "127.0.0.1" },
     };
 
-    /* Loop through the previous array. If the user used an alias, return the
-     * real one */
-    for (int i = 0; i < LENGTH(special_ips); i++)
-        if (!strcmp(ip, special_ips[i].user))
-            return special_ips[i].real;
+    for (size_t i = 0; i < LENGTH(aliases); i++)
+        if (!strcmp(ip, aliases[i].alias))
+            return aliases[i].real;
 
     return ip;
 }
 
-/**
- * @brief Main function for the "listen" mode
- * @return Exit code
- */
-int snc_listen(void) {
+/*----------------------------------------------------------------------------*/
+/* Main modes */
+
+/* Main function for the "listen" mode. */
+static int snc_listen(void) {
     /*
      * Create the socket descriptor for listening.
      *
@@ -108,17 +97,19 @@ int snc_listen(void) {
     }
 
     /* Declare and clear struct */
-    sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(sockaddr_in));
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(struct sockaddr_in));
 
-    /* Fill the struct we just declared.
-     * See: https://www.gta.ufrj.br/ensino/eel878/sockets/sockaddr_inman.html */
+    /*
+     * Fill the struct we just declared.
+     * See: https://www.gta.ufrj.br/ensino/eel878/sockets/sockaddr_inman.html
+     */
     server_addr.sin_family      = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* htonl -> uint32_t */
     server_addr.sin_port        = htons(PORT);       /* htons -> uint16_t */
 
     /* Bind socket file descriptor to the struct we just filled (but casted) */
-    bind(listen_fd, (sockaddr*)&server_addr, sizeof(sockaddr));
+    bind(listen_fd, (struct sockaddr*)&server_addr, sizeof(struct sockaddr));
 
     /* 10 is the max number of connections to queue */
     listen(listen_fd, 10);
@@ -135,19 +126,16 @@ int snc_listen(void) {
     return 0;
 }
 
-/**
- * @brief Main function for the "connect" mode
- * @return Exit code
- */
-int snc_connect(const char* ip) {
+/* Main function for the "connect" mode. See `snc_listen' for more comments. */
+static int snc_connect(const char* ip) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (!socket_fd) {
         fprintf(stderr, "connect: failed to create socket.\n");
         return 1;
     }
 
-    sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(sockaddr_in));
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(struct sockaddr_in));
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_port   = htons(PORT);
@@ -157,7 +145,8 @@ int snc_connect(const char* ip) {
         return 1;
     }
 
-    if (connect(socket_fd, (sockaddr*)&server_addr, sizeof(sockaddr)) < 0) {
+    if (connect(socket_fd, (struct sockaddr*)&server_addr,
+                sizeof(struct sockaddr)) < 0) {
         fprintf(stderr, "Connection error.\n");
         return 1;
     }
@@ -173,14 +162,8 @@ int snc_connect(const char* ip) {
     return 0;
 }
 
-/**
- * @brief Entry point of the program
- * @param argc Number of arguments
- * @param argv Vector of string arguments
- * @return Exit code
- */
 int main(int argc, char** argv) {
-    int mode = arg_check(argc, argv);
+    EMode mode = get_mode(argc, argv);
     if (mode == MODE_ERR) {
         fprintf(stderr,
                 "Usage:\n"
@@ -191,13 +174,16 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (mode == MODE_LISTEN) {
-        return snc_listen(); /* snc l */
-    } else if (mode == MODE_CONNECT) {
-        return snc_connect(check_ip(argv[2])); /* snc c IP */
-    } else {
-        fprintf(stderr, "Unknown mode error.\n");
-        return 1;
+    switch (mode) {
+        case MODE_LISTEN: /* snc l */
+            return snc_listen();
+
+        case MODE_CONNECT: /* snc c IP */
+            return snc_connect(unalias_ip(argv[2]));
+
+        default:
+            fprintf(stderr, "Fatal: Unhandled mode.\n");
+            exit(1);
     }
 
     return 0;
