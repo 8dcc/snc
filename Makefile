@@ -1,7 +1,7 @@
 
 CC=gcc
-CFLAGS=-Wall -Wextra
-LDFLAGS=
+CFLAGS=-std=gnu99 -Wall -Wextra -Wpedantic
+LDLIBS=
 
 OBJ_FILES=main.c.o
 OBJS=$(addprefix obj/, $(OBJ_FILES))
@@ -9,9 +9,9 @@ OBJS=$(addprefix obj/, $(OBJ_FILES))
 INSTALL_DIR=/usr/local/bin
 BIN=snc
 
-.PHONY: clean all install
+.PHONY: all clean install
 
-# -------------------------------------------
+#-------------------------------------------------------------------------------
 
 all: $(BIN)
 
@@ -21,14 +21,13 @@ clean:
 
 install: $(BIN)
 	mkdir -p $(INSTALL_DIR)
-	install -m 755 ./$(BIN) $(INSTALL_DIR)/$(BIN)
+	install -m 755 $^ $(INSTALL_DIR)
 
-# -------------------------------------------
+#-------------------------------------------------------------------------------
 
 $(BIN): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
-$(OBJS): obj/%.c.o : src/%.c
-	@mkdir -p obj/
-	$(CC) $(CFLAGS) -c -o $@ $< $(LDFLAGS)
-
+obj/%.c.o : src/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ -c $<
