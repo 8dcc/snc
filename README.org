@@ -1,18 +1,8 @@
-#+title: snc
-#+options: toc:nil
-#+startup: showeverything
-#+export_file_name: ./doc/README.md
-#+author: 8dcc
+#+TITLE: snc
+#+OPTIONS: toc:nil
+#+STARTUP: showeverything
+#+AUTHOR: 8dcc
 
-#+begin_comment
-*TODO*: Export README.org to markdown for Doxygen
-#+end_comment
-
-*Simple NetCat.*
-
-#+TOC: headlines 2
-
-* Description
 Simple port of the NetCat command in C using sockets.
 
 * Building
