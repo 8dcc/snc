@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <unistd.h>    /* write, close */
 #include <arpa/inet.h> /* htonl, htons */
@@ -163,9 +164,13 @@ static void snc_listen(void) {
 
     int conn_fd = accept(listen_fd, NULL, NULL);
 
+    int read_code;
     char c = 0;
-    while (read(conn_fd, &c, 1) && c != EOF)
+    while ((read_code = read(conn_fd, &c, 1)) > 0)
         putchar(c);
+
+    if (read_code < 0)
+        ERR("Read error: %s", strerror(errno));
 
     close(conn_fd);
     close(listen_fd);
@@ -196,12 +201,14 @@ static void snc_connect(const char* ip) {
         exit(1);
     }
 
-    char c;
-    while ((c = getchar()) != EOF)
-        write(socket_fd, &c, 1);
+    int c;
+    while ((c = getchar()) != EOF) {
+        if (write(socket_fd, &c, 1) == -1) {
+            ERR("Write error: %s", strerror(errno));
+            break;
+        }
+    }
 
-    /* Need to send EOF so it knows when to stop */
-    write(socket_fd, &c, 1);
     close(socket_fd);
 }
 
