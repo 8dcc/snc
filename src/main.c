@@ -57,11 +57,6 @@
 /*----------------------------------------------------------------------------*/
 /* Internal structures and enums */
 
-typedef struct {
-    const char* alias;
-    const char* real;
-} IpAlias;
-
 enum EMode {
     MODE_ERR,
     MODE_LISTEN,
@@ -101,23 +96,6 @@ static enum EMode get_mode(int argc, char** argv) {
 
     ERR("Not enough arguments.");
     return MODE_ERR;
-}
-
-/*
- * If the specified IP address is an alias (e.g. "localhost"), get the real IP
- * address associated with it. Otherwise return the argument unchanged.
- */
-static const char* unalias_ip(const char* ip) {
-    IpAlias aliases[] = {
-        /* alias,       real */
-        { "localhost", "127.0.0.1" },
-    };
-
-    for (size_t i = 0; i < LENGTH(aliases); i++)
-        if (!strcmp(ip, aliases[i].alias))
-            return aliases[i].real;
-
-    return ip;
 }
 
 /*
@@ -163,11 +141,12 @@ static inline void list_interfaces(void) {
 /* Main modes */
 
 /*
- * Main function for the "listen" mode.
+ * Main function for the "receive" mode.
  *
  * TODO: Improve.
+ * TODO: Change argument type to match `snc_transmit'.
  */
-static void snc_listen(void) {
+static void snc_receive(int port) {
     /*
      * Create the socket descriptor for listening.
      *
@@ -195,7 +174,7 @@ static void snc_listen(void) {
      */
     server_addr.sin_family      = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* htonl -> uint32_t */
-    server_addr.sin_port        = htons(PORT);       /* htons -> uint16_t */
+    server_addr.sin_port        = htons(port);       /* htons -> uint16_t */
 
     /* Bind socket file descriptor to the struct we just filled (but casted) */
     bind(listen_fd, (struct sockaddr*)&server_addr, sizeof(struct sockaddr));
@@ -218,44 +197,69 @@ static void snc_listen(void) {
 }
 
 /*
- * Main function for the "connect" mode. See `snc_listen' for more comments.
+ * Main function for the "transmit" mode.
  *
- * TODO: Improve.
+ * Note that the format of the `ip' and `port' arguments should match any valid
+ * inputs for `getaddrinfo'. Note that if the port is not numeric, it should
+ * appear in the "/etc/services" file.
  */
-static void snc_connect(const char* ip) {
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (!socket_fd) {
-        ERR("Failed to create socket.");
-        exit(1);
-    }
+static void snc_transmit(const char* ip, const char* port) {
+    int status;
 
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(struct sockaddr_in));
+    /*
+     * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
+     *
+     * First, the family: IPv4 (AF_INET).
+     * Second, the socket type: TCP (SOCK_STREAM).
+     */
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port   = htons(PORT);
+    /*
+     * Obtain the address information from the specified hints.
+     */
+    struct addrinfo* server_info;
+    status = getaddrinfo(ip, port, &hints, &server_info);
+    if (status != 0)
+        DIE("Could not obtaining address info: %s", gai_strerror(status));
 
-    if (!inet_pton(AF_INET, ip, &server_addr.sin_addr)) {
-        ERR("IP error.");
-        exit(1);
-    }
+    /*
+     * We obtain the socket descriptor using the values from the `addrinfo'
+     * structure that `getaddrinfo' filled.
+     */
+    const int sockfd = socket(server_info->ai_family,
+                              server_info->ai_socktype,
+                              server_info->ai_protocol);
+    if (sockfd < 0)
+        DIE("Could not create socket: %s", strerror(errno));
 
-    if (connect(socket_fd,
-                (struct sockaddr*)&server_addr,
-                sizeof(struct sockaddr)) < 0) {
-        ERR("Connection error.");
-        exit(1);
-    }
+    /*
+     * Connect to the actual server. Again, using the values from the `addrinfo'
+     * structure.
+     */
+    status = connect(sockfd, server_info->ai_addr, server_info->ai_addrlen);
+    if (status < 0)
+        DIE("Connection error: %s", strerror(errno));
 
+    /*
+     * Characters from `stdin', and write them to `sockfd'.
+     */
     int c;
     while ((c = getchar()) != EOF) {
-        if (write(socket_fd, &c, 1) == -1) {
-            ERR("Write error: %s", strerror(errno));
-            break;
-        }
+        const char byte   = (char)c;
+        const int written = write(sockfd, &byte, sizeof(byte));
+        if (written < 0)
+            DIE("Write error: %s", strerror(errno));
     }
 
-    close(socket_fd);
+    /*
+     * Close the socket descriptor, and free the linked list of `addrinfo'
+     * structures that `getaddrinfo' allocated.
+     */
+    close(sockfd);
+    freeaddrinfo(server_info);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -265,25 +269,25 @@ int main(int argc, char** argv) {
     if (mode == MODE_ERR) {
         fprintf(stderr,
                 "Usage:\n"
-                "    %s h       - Show this help\n"
-                "    %s l       - Start in listen mode\n"
-                "    %s c <IP>  - Connect to specified IP address\n",
+                "    %s h       - Show this help.\n"
+                "    %s r       - Start in \"receive\" mode.\n"
+                "    %s t <IP>  - Transmit to specified IP address.\n",
                 argv[0],
                 argv[0],
                 argv[0]);
         return 1;
     }
 
-    /*
-     * TODO: Rename modes: l -> r; c -> t
-     */
     switch (mode) {
-        case MODE_LISTEN: /* snc l */
-            snc_listen();
+        case MODE_LISTEN: /* snc r */
+            snc_receive(PORT);
             break;
 
-        case MODE_CONNECT: /* snc c IP */
-            snc_connect(unalias_ip(argv[2]));
+        case MODE_CONNECT: /* snc t IP */
+            /*
+             * FIXME: Use `PORT' macro when it becomes a string literal.
+             */
+            snc_transmit(argv[2], "1337");
             break;
 
         default:
