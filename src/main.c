@@ -59,8 +59,8 @@
 
 enum EMode {
     MODE_ERR,
-    MODE_LISTEN,
-    MODE_CONNECT,
+    MODE_RECEIVE,
+    MODE_TRANSMIT,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -75,19 +75,27 @@ static enum EMode get_mode(int argc, char** argv) {
 
     for (int i = 0; argv[1][i] != '\0'; i++) {
         switch (argv[1][i]) {
-            case 'l': /* Listen */
-                return MODE_LISTEN;
-            case 'c': /* Connect */
+            /* Receive */
+            case 'r':
+                return MODE_RECEIVE;
+
+            /* Transmit */
+            case 't':
                 if (argc < 3) {
                     ERR("Not enough arguments for option \"c\".");
                     return MODE_ERR;
                 }
 
-                return MODE_CONNECT;
-            case 'h': /* Help */
+                return MODE_TRANSMIT;
+
+            /* Help */
+            case 'h':
                 return MODE_ERR;
-            case '-': /* "snc -h" -> "snc h" */
+
+            /* "snc -h" -> "snc h" */
+            case '-':
                 break;
+
             default:
                 ERR("Unknown option \"%s\".", argv[1]);
                 return MODE_ERR;
@@ -279,11 +287,11 @@ int main(int argc, char** argv) {
     }
 
     switch (mode) {
-        case MODE_LISTEN: /* snc r */
+        case MODE_RECEIVE:
             snc_receive(PORT);
             break;
 
-        case MODE_CONNECT: /* snc t IP */
+        case MODE_TRANSMIT:
             /*
              * FIXME: Use `PORT' macro when it becomes a string literal.
              */
