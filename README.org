@@ -1,43 +1,65 @@
 #+TITLE: snc
+#+AUTHOR: 8dcc
 #+OPTIONS: toc:nil
 #+STARTUP: showeverything
-#+AUTHOR: 8dcc
 
-Simple port of the NetCat command in C using sockets.
+Simple netcat(1) alternative in C using sockets.
+
+Some interesting resources about networking:
+- [[https://beej.us/guide/bgnet/][Beej's Guide to Network Programming]], available for free in multiple formats.
 
 * Building
+
+To build the project, simply clone the repository and run =make=.
 
 #+begin_src console
 $ git clone https://github.com/8dcc/snc
 $ cd snc
-$ make
+$ make clean all
+...
+#+end_src
+
+Optionally, if you want to install the program in your system, use the =install=
+target.
+
+#+begin_src console
+$ sudo make install
 ...
 #+end_src
 
 * Usage
 
+The help can be shown with the =h= command.
+
 #+begin_src console
-$ ./snc h
+$ snc h
 Usage:
-    ./snc h       - Show this help
-    ./snc l       - Start in listen mode
-    ./snc c <IP>  - Connect to specified IP address
+    snc h       - Show this help.
+    snc r       - Start in "receive" mode.
+    snc t <IP>  - Transmit to specified IP address.
 #+end_src
 
-In a terminal:
+To receive data from another machine, start the program in /receive/ mode. It will
+start to listen, and print received data to =stdout=.
 
 #+begin_src console
-$ ./snc l  # Start to listen. It will print received data.
+$ snc l
+...
 
-$ ./snc l > output.txt
+$ snc l > output.txt
 #+end_src
 
-In another terminal:
+To transmit data to another machine, start the program in /transmit/ mode. It will
+read data from =stdin=, transmit it to the specified IP address.
 
 #+begin_src console
-$ ./snc c IP
+$ snc c IP
 Type stuff here!
-It will send it to the listening session.
+...
+It will send it to the receiver.
 
-$ ./snc c IP < input.txt
+$ snc c IP < input.txt
 #+end_src
+
+The port for receiving and transmitting is hard-coded (as a macro) in the [[file:src/main.c][main.c]]
+source.
