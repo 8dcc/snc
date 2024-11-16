@@ -1,16 +1,34 @@
+/*
+ * Copyright 2024 8dcc
+ *
+ * This file is part of snc (Simple NetCat).
+ *
+ * This program is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-#include <unistd.h>    /* write, close */
-#include <arpa/inet.h> /* htonl, htons */
+#include <unistd.h>    /* read(), write(), close() */
+#include <netdb.h>     /* getaddrinfo(), etc. */
+#include <arpa/inet.h> /* htonl(), htons() */
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <ifaddrs.h> /* getifaddrs(), etc. */
 #include <net/if.h>  /* IFF_LOOPBACK */
-#include <netdb.h>   /* getnameinfo(), etc. */
 
 /*----------------------------------------------------------------------------*/
 /* Macros */
@@ -23,11 +41,17 @@
 
 #define LENGTH(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
 
-#define ERR(...)                      \
-    do {                              \
-        fprintf(stderr, "snc: ");     \
-        fprintf(stderr, __VA_ARGS__); \
-        fputc('\n', stderr);          \
+#define ERR(...)                                                               \
+    do {                                                                       \
+        fprintf(stderr, "snc: ");                                              \
+        fprintf(stderr, __VA_ARGS__);                                          \
+        fputc('\n', stderr);                                                   \
+    } while (0)
+
+#define DIE(...)                                                               \
+    do {                                                                       \
+        ERR(__VA_ARGS__);                                                      \
+        exit(1);                                                               \
     } while (0)
 
 /*----------------------------------------------------------------------------*/
@@ -38,17 +62,19 @@ typedef struct {
     const char* real;
 } IpAlias;
 
-typedef enum EMode {
+enum EMode {
     MODE_ERR,
     MODE_LISTEN,
     MODE_CONNECT,
-} EMode;
+};
 
 /*----------------------------------------------------------------------------*/
 /* Util functions */
 
-/* Get the program mode from the arguments */
-static EMode get_mode(int argc, char** argv) {
+/*
+ * Get the program mode (`EMode') from the command line arguments.
+ */
+static enum EMode get_mode(int argc, char** argv) {
     if (argc < 2)
         return MODE_ERR;
 
@@ -77,8 +103,10 @@ static EMode get_mode(int argc, char** argv) {
     return MODE_ERR;
 }
 
-/* If the specified IP address is an alias (e.g. "localhost"), get the real IP
- * address associated with it. Otherwise return the argument unchanged.  */
+/*
+ * If the specified IP address is an alias (e.g. "localhost"), get the real IP
+ * address associated with it. Otherwise return the argument unchanged.
+ */
 static const char* unalias_ip(const char* ip) {
     IpAlias aliases[] = {
         /* alias,       real */
@@ -92,6 +120,9 @@ static const char* unalias_ip(const char* ip) {
     return ip;
 }
 
+/*
+ * List the available interfaces to `stderr'.
+ */
 static inline void list_interfaces(void) {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
@@ -99,8 +130,9 @@ static inline void list_interfaces(void) {
         return;
     }
 
-    fprintf(stderr, "---------------------------\n"
-                    "Listening on any interface:\n");
+    fprintf(stderr,
+            "---------------------------\n"
+            "Listening on any interface:\n");
 
     for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         /* Ignore non-INET address families and loopback interfaces */
@@ -109,8 +141,13 @@ static inline void list_interfaces(void) {
             continue;
 
         char host[NI_MAXHOST];
-        int code = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host,
-                               NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+        int code = getnameinfo(ifa->ifa_addr,
+                               sizeof(struct sockaddr_in),
+                               host,
+                               NI_MAXHOST,
+                               NULL,
+                               0,
+                               NI_NUMERICHOST);
         if (code != 0)
             continue;
 
@@ -125,7 +162,11 @@ static inline void list_interfaces(void) {
 /*----------------------------------------------------------------------------*/
 /* Main modes */
 
-/* Main function for the "listen" mode. */
+/*
+ * Main function for the "listen" mode.
+ *
+ * TODO: Improve.
+ */
 static void snc_listen(void) {
     /*
      * Create the socket descriptor for listening.
@@ -176,7 +217,11 @@ static void snc_listen(void) {
     close(listen_fd);
 }
 
-/* Main function for the "connect" mode. See `snc_listen' for more comments. */
+/*
+ * Main function for the "connect" mode. See `snc_listen' for more comments.
+ *
+ * TODO: Improve.
+ */
 static void snc_connect(const char* ip) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (!socket_fd) {
@@ -195,7 +240,8 @@ static void snc_connect(const char* ip) {
         exit(1);
     }
 
-    if (connect(socket_fd, (struct sockaddr*)&server_addr,
+    if (connect(socket_fd,
+                (struct sockaddr*)&server_addr,
                 sizeof(struct sockaddr)) < 0) {
         ERR("Connection error.");
         exit(1);
@@ -212,18 +258,25 @@ static void snc_connect(const char* ip) {
     close(socket_fd);
 }
 
+/*----------------------------------------------------------------------------*/
+
 int main(int argc, char** argv) {
-    EMode mode = get_mode(argc, argv);
+    const enum EMode mode = get_mode(argc, argv);
     if (mode == MODE_ERR) {
         fprintf(stderr,
                 "Usage:\n"
                 "    %s h       - Show this help\n"
                 "    %s l       - Start in listen mode\n"
                 "    %s c <IP>  - Connect to specified IP address\n",
-                argv[0], argv[0], argv[0]);
+                argv[0],
+                argv[0],
+                argv[0]);
         return 1;
     }
 
+    /*
+     * TODO: Rename modes: l -> r; c -> t
+     */
     switch (mode) {
         case MODE_LISTEN: /* snc l */
             snc_listen();
@@ -235,7 +288,7 @@ int main(int argc, char** argv) {
 
         default:
             ERR("Fatal: Unhandled mode.");
-            exit(1);
+            return 1;
     }
 
     return 0;
