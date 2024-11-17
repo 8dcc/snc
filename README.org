@@ -3,7 +3,7 @@
 #+OPTIONS: toc:nil
 #+STARTUP: showeverything
 
-Simple netcat(1) alternative in C using sockets.
+Simple =netcat(1)= alternative in C using sockets.
 
 Some interesting resources about networking:
 - [[https://beej.us/guide/bgnet/][Beej's Guide to Network Programming]], available for free in multiple formats.
