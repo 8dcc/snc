@@ -16,6 +16,7 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
 #include <stdio.h> /* fprintf(), fputc(), etc. */
 
 #include <ifaddrs.h> /* getifaddrs(), etc. */
@@ -27,14 +28,14 @@
 
 #include "include/util.h"
 
-void list_interfaces(void) {
+void list_interfaces(FILE* fp) {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
         ERR("Failed to list interfaces.");
         return;
     }
 
-    fprintf(stderr,
+    fprintf(fp,
             "---------------------------\n"
             "Listening on any interface:\n");
 
@@ -55,10 +56,10 @@ void list_interfaces(void) {
         if (code != 0)
             continue;
 
-        fprintf(stderr, "%s: %s\n", ifa->ifa_name, host);
+        fprintf(fp, "%s: %s\n", ifa->ifa_name, host);
     }
 
-    fprintf(stderr, "---------------------------\n");
+    fprintf(fp, "---------------------------\n");
 
     freeifaddrs(ifaddr);
 }

@@ -45,9 +45,9 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * List the available interfaces to `stderr'.
+ * List the available interfaces to the specified `FILE'.
  */
-void list_interfaces(void);
+void list_interfaces(FILE* fp);
 
 /*
  * Print a generic `sockaddr' structure to the specified `FILE'. Prints both

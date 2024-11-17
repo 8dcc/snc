@@ -54,7 +54,7 @@ void snc_receive(const char* port) {
     int status;
 
 #ifdef SNC_LIST_INTERFACES
-    list_interfaces();
+    list_interfaces(stderr);
 #endif
 
     /*
