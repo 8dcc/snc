@@ -3,7 +3,7 @@ CC=gcc
 CFLAGS=-std=gnu99 -Wall -Wextra -Wpedantic
 LDLIBS=
 
-SRC=main.c
+SRC=main.c util.c receive.c transmit.c
 OBJ=$(addprefix obj/, $(addsuffix .o, $(SRC)))
 
 BIN=snc
