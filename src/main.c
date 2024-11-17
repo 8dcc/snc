@@ -354,16 +354,20 @@ static void snc_transmit(const char* ip, const char* port) {
         DIE("Connection error: %s", strerror(errno));
 
     /*
-     * Characters from `stdin', and write them to `sockfd'.
+     * Read characters from `stdin', and write them to `sockfd'.
      *
-     * TODO: Use `send', instead of `write'.
+     * TODO: We could probably improve this by buffering characters from
+     * `stdin', and sending the whole buffer to `send', rather than sending just
+     * one character at a time.
      */
     int c;
     while ((c = getchar()) != EOF) {
         const char byte   = (char)c;
-        const int written = write(sockfd, &byte, sizeof(byte));
+        const ssize_t written = send(sockfd, &byte, sizeof(byte), 0);
         if (written < 0)
             DIE("Write error: %s", strerror(errno));
+        if (written == 0)
+            ERR("Warning: No bytes were sent. Ignoring...");
     }
 
     /*
