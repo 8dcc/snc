@@ -304,6 +304,7 @@ static void snc_receive(const char* port) {
 
     close(sockfd_connection);
     close(sockfd_listen);
+    freeaddrinfo(self_info);
 }
 
 /*
@@ -362,7 +363,7 @@ static void snc_transmit(const char* ip, const char* port) {
      */
     int c;
     while ((c = getchar()) != EOF) {
-        const char byte   = (char)c;
+        const char byte       = (char)c;
         const ssize_t written = send(sockfd, &byte, sizeof(byte), 0);
         if (written < 0)
             DIE("Write error: %s", strerror(errno));
