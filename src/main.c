@@ -31,13 +31,32 @@
 #include <net/if.h>  /* IFF_LOOPBACK */
 
 /*----------------------------------------------------------------------------*/
-/* Macros */
 
-/* Comment to disable interface listing on "listen" mode. */
-#define LIST_INTERFACES
+/*
+ * If defined, interfaces will be listed on "receive" mode.
+ */
+#define SNC_LIST_INTERFACES
 
-#define PORT    1337
-#define MAX_BUF 256 /* Max size of message/response */
+/*
+ * If defined, the peer info will be displayed when a connection is accepted on
+ * "receive" mode.
+ */
+#define SNC_PRINT_PEER_INFO
+
+/*
+ * Maximum number of connections that the receiver can wait for. See the second
+ * parameter of listen(2).
+ */
+#define SNC_LISTEN_QUEUE_SZ 10
+
+/*
+ * Port used to communicate between a transmitter and a receiver.
+ *
+ * TODO: Allow the user to overwrite it through argv?
+ */
+#define SNC_PORT "1337"
+
+/*----------------------------------------------------------------------------*/
 
 #define LENGTH(ARR) (sizeof(ARR) / sizeof((ARR)[0]))
 
@@ -55,8 +74,10 @@
     } while (0)
 
 /*----------------------------------------------------------------------------*/
-/* Internal structures and enums */
 
+/*
+ * Main modes for the program.
+ */
 enum EMode {
     MODE_ERR,
     MODE_RECEIVE,
@@ -64,7 +85,6 @@ enum EMode {
 };
 
 /*----------------------------------------------------------------------------*/
-/* Util functions */
 
 /*
  * Get the program mode (`EMode') from the command line arguments.
@@ -109,7 +129,7 @@ static enum EMode get_mode(int argc, char** argv) {
 /*
  * List the available interfaces to `stderr'.
  */
-static inline void list_interfaces(void) {
+static void list_interfaces(void) {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
         ERR("Failed to list interfaces.");
@@ -145,63 +165,145 @@ static inline void list_interfaces(void) {
     freeifaddrs(ifaddr);
 }
 
+static void print_sockaddr(FILE* fp, struct sockaddr_storage* info) {
+    void* addr;
+    in_port_t port;
+
+    switch (info->ss_family) {
+        case AF_INET: {
+            struct sockaddr_in* ipv4 = (struct sockaddr_in*)info;
+
+            addr = &(ipv4->sin_addr);
+            port = ipv4->sin_port;
+        } break;
+
+        case AF_INET6: {
+            struct sockaddr_in6* ipv6 = (struct sockaddr_in6*)info;
+
+            addr = &(ipv6->sin6_addr);
+            port = ipv6->sin6_port;
+        } break;
+
+        default:
+            ERR("Unknown address family.");
+            return;
+    }
+
+    char dst[INET6_ADDRSTRLEN];
+    inet_ntop(info->ss_family, addr, dst, sizeof(dst));
+    fprintf(fp, "%s, %d", dst, port);
+}
+
 /*----------------------------------------------------------------------------*/
 /* Main modes */
 
 /*
  * Main function for the "receive" mode.
- *
- * TODO: Improve.
- * TODO: Change argument type to match `snc_transmit'.
  */
-static void snc_receive(int port) {
-    /*
-     * Create the socket descriptor for listening.
-     *
-     * domain:   AF_INET     (IPv4 address)
-     * type:     SOCK_STREAM (TCP, etc.)
-     * protocol: 0           (Let the kernel decide, usually TPC)
-     */
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (!listen_fd) {
-        ERR("Failed to create socket.");
-        exit(1);
-    }
+static void snc_receive(const char* port) {
+    int status;
 
-#ifdef LIST_INTERFACES
+#ifdef SNC_LIST_INTERFACES
     list_interfaces();
 #endif
 
-    /* Declare and clear struct */
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(struct sockaddr_in));
+    /*
+     * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
+     *
+     *   1. The family: IPv4 (AF_INET).
+     *   1. The socket type: TCP (SOCK_STREAM).
+     *   3. Set the `AI_PASSIVE' flag to indicate that we want to deal with
+     *      our own IP address.
+     */
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_PASSIVE;
 
     /*
-     * Fill the struct we just declared.
-     * See: https://www.gta.ufrj.br/ensino/eel878/sockets/sockaddr_inman.html
+     * Obtain the address information from the specified hints.
+     *
+     * Note how we use `NULL', along with the `AI_PASSIVE' flag in `hints', to
+     * indicate that we want to obtain information about or own IP address.
      */
-    server_addr.sin_family      = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY); /* htonl -> uint32_t */
-    server_addr.sin_port        = htons(port);       /* htons -> uint16_t */
+    struct addrinfo* self_info;
+    status = getaddrinfo(NULL, port, &hints, &self_info);
+    if (status != 0)
+        DIE("Could not obtaining our address info: %s", gai_strerror(status));
 
-    /* Bind socket file descriptor to the struct we just filled (but casted) */
-    bind(listen_fd, (struct sockaddr*)&server_addr, sizeof(struct sockaddr));
+    /*
+     * We obtain the socket descriptor using the values from the `addrinfo'
+     * structure that `getaddrinfo' filled.
+     */
+    const int sockfd_listen = socket(self_info->ai_family,
+                                     self_info->ai_socktype,
+                                     self_info->ai_protocol);
+    if (sockfd_listen < 0)
+        DIE("Could not create socket: %s", strerror(errno));
 
-    /* 10 is the max number of connections to queue */
-    listen(listen_fd, 10);
+    /*
+     * We `bind' the local port to the socket descriptor. The port (along with
+     * the IP address) should be inside a `sockaddr' structure; and,
+     * conviniently, `getaddrinfo' filled that information inside the
+     * `self_info->ai_addr' member.
+     */
+    status = bind(sockfd_listen, self_info->ai_addr, self_info->ai_addrlen);
+    if (status != 0)
+        DIE("Could not bind port to socket descriptor: %s", strerror(errno));
 
-    int conn_fd = accept(listen_fd, NULL, NULL);
+    /*
+     * We listen for incoming connections on the port we just bound to the
+     * socket descriptor. The second argument indicates the maximum number of
+     * connections that can be queued before being accepted.
+     */
+    status = listen(sockfd_listen, SNC_LISTEN_QUEUE_SZ);
+    if (status != 0)
+        DIE("Could not listen for connections: %s", strerror(errno));
 
-    int read_code;
-    char c = 0;
-    while ((read_code = read(conn_fd, &c, 1)) > 0)
+    /*
+     * We accept the incoming connection, and we get a new socket descriptor. It
+     * will be used to read (and optionally write) data.
+     *
+     * The function will fill the second and third arguments with the address
+     * information of the peer. We use `sockaddr_storage' since it's guaranteed
+     * to be "at least as large as any other `sockaddr_*' address structure".
+     * See also sockaddr(3type).
+     *
+     * The call to `accept' normally blocks the program until a connection is
+     * received.
+     */
+    struct sockaddr_storage peer_addr;
+    socklen_t peer_addr_sz = sizeof(peer_addr);
+    const int sockfd_connection =
+      accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
+    if (sockfd_connection < 0)
+        DIE("Could not accept incoming connection: %s", strerror(errno));
+
+#ifdef SNC_PRINT_PEER_INFO
+    fprintf(stderr, "Incomming connection from: ");
+    print_sockaddr(stderr, &peer_addr);
+    fprintf(stderr, "\n---------------------------\n");
+#endif
+
+    /*
+     * Receive the data from the connection, one byte at a time. Note how we use
+     * the connection socket descriptor (returned by `accept'), not the socket
+     * descriptor used for listening for new connections (returned by `socket').
+     */
+    for (;;) {
+        char c;
+        const ssize_t num_read = recv(sockfd_connection, &c, sizeof(c), 0);
+        if (num_read < 0)
+            DIE("Read error: %s", strerror(errno));
+        if (num_read == 0)
+            break;
+
         putchar(c);
+    }
 
-    if (read_code < 0)
-        ERR("Read error: %s", strerror(errno));
-
-    close(conn_fd);
-    close(listen_fd);
+    close(sockfd_connection);
+    close(sockfd_listen);
 }
 
 /*
@@ -217,8 +319,8 @@ static void snc_transmit(const char* ip, const char* port) {
     /*
      * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
      *
-     * First, the family: IPv4 (AF_INET).
-     * Second, the socket type: TCP (SOCK_STREAM).
+     *   1. The family: IPv4 (AF_INET).
+     *   2. The socket type: TCP (SOCK_STREAM).
      */
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -248,11 +350,13 @@ static void snc_transmit(const char* ip, const char* port) {
      * structure.
      */
     status = connect(sockfd, server_info->ai_addr, server_info->ai_addrlen);
-    if (status < 0)
+    if (status != 0)
         DIE("Connection error: %s", strerror(errno));
 
     /*
      * Characters from `stdin', and write them to `sockfd'.
+     *
+     * TODO: Use `send', instead of `write'.
      */
     int c;
     while ((c = getchar()) != EOF) {
@@ -288,14 +392,11 @@ int main(int argc, char** argv) {
 
     switch (mode) {
         case MODE_RECEIVE:
-            snc_receive(PORT);
+            snc_receive(SNC_PORT);
             break;
 
         case MODE_TRANSMIT:
-            /*
-             * FIXME: Use `PORT' macro when it becomes a string literal.
-             */
-            snc_transmit(argv[2], "1337");
+            snc_transmit(argv[2], SNC_PORT);
             break;
 
         default:
