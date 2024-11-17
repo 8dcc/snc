@@ -79,51 +79,52 @@
  * Main modes for the program.
  */
 enum EMode {
-    MODE_ERR,
+    MODE_ERR_UNK,
+    MODE_ERR_ARGC,
+    MODE_HELP,
     MODE_RECEIVE,
     MODE_TRANSMIT,
+};
+
+struct {
+    enum EMode mode;
+    const char* arg;
+    const char* extra_args;
+    const char* desc;
+} g_mode_args[] = {
+    { MODE_HELP, "h", NULL, "Show the help." },
+    { MODE_RECEIVE, "r", NULL, "Receive data from incoming transmitters." },
+    { MODE_TRANSMIT, "t", "TARGET", "Transmit data into the TARGET receiver." },
 };
 
 /*----------------------------------------------------------------------------*/
 
 /*
- * Get the program mode (`EMode') from the command line arguments.
+ * Get the program mode from the command line arguments.
  */
 static enum EMode get_mode(int argc, char** argv) {
     if (argc < 2)
-        return MODE_ERR;
+        return MODE_ERR_ARGC;
 
-    for (int i = 0; argv[1][i] != '\0'; i++) {
-        switch (argv[1][i]) {
-            /* Receive */
-            case 'r':
-                return MODE_RECEIVE;
+    const char* mode_argument = argv[1];
+    for (size_t i = 0; i < LENGTH(g_mode_args); i++)
+        if (!strcmp(mode_argument, g_mode_args[i].arg))
+            return g_mode_args[i].mode;
 
-            /* Transmit */
-            case 't':
-                if (argc < 3) {
-                    ERR("Not enough arguments for option \"c\".");
-                    return MODE_ERR;
-                }
+    return MODE_ERR_UNK;
+}
 
-                return MODE_TRANSMIT;
-
-            /* Help */
-            case 'h':
-                return MODE_ERR;
-
-            /* "snc -h" -> "snc h" */
-            case '-':
-                break;
-
-            default:
-                ERR("Unknown option \"%s\".", argv[1]);
-                return MODE_ERR;
-        }
+/*
+ * List the avaliable command-line arguments.
+ */
+static void show_help(const char* self) {
+    fprintf(stderr, "Usage:\n\n");
+    for (size_t i = 0; i < LENGTH(g_mode_args); i++) {
+        fprintf(stderr, "\t%s %s", self, g_mode_args[i].arg);
+        if (g_mode_args[i].extra_args != NULL)
+            fprintf(stderr, " %s", g_mode_args[i].extra_args);
+        fprintf(stderr, "\n\t\t%s\n\n", g_mode_args[i].desc);
     }
-
-    ERR("Not enough arguments.");
-    return MODE_ERR;
 }
 
 /*
@@ -383,17 +384,6 @@ static void snc_transmit(const char* ip, const char* port) {
 
 int main(int argc, char** argv) {
     const enum EMode mode = get_mode(argc, argv);
-    if (mode == MODE_ERR) {
-        fprintf(stderr,
-                "Usage:\n"
-                "    %s h       - Show this help.\n"
-                "    %s r       - Start in \"receive\" mode.\n"
-                "    %s t <IP>  - Transmit to specified IP address.\n",
-                argv[0],
-                argv[0],
-                argv[0]);
-        return 1;
-    }
 
     switch (mode) {
         case MODE_RECEIVE:
@@ -401,12 +391,21 @@ int main(int argc, char** argv) {
             break;
 
         case MODE_TRANSMIT:
+            if (argc < 3)
+                DIE("Not enough arguments for the specified mode.");
+
             snc_transmit(argv[2], SNC_PORT);
             break;
 
-        default:
-            ERR("Fatal: Unhandled mode.");
+        case MODE_HELP:
+            show_help(argv[0]);
             return 1;
+
+        case MODE_ERR_ARGC:
+            DIE("Not enough arguments.");
+
+        case MODE_ERR_UNK:
+            DIE("Unknown mode argument.");
     }
 
     return 0;
