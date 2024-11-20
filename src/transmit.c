@@ -29,6 +29,15 @@
 #include "include/util.h"
 #include "include/transmit.h"
 
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Size of the buffer used when reading data.
+ */
+#define BUF_SZ 1000
+
+/*----------------------------------------------------------------------------*/
+
 void snc_transmit(const char* ip, const char* port) {
     int status;
 
@@ -71,19 +80,29 @@ void snc_transmit(const char* ip, const char* port) {
 
     /*
      * Read characters from `stdin', and write them to `sockfd'.
-     *
-     * TODO: We could probably improve this by buffering characters from
-     * `stdin', and sending the whole buffer to `send', rather than sending just
-     * one character at a time.
      */
-    int c;
-    while ((c = getchar()) != EOF) {
-        const char byte       = (char)c;
-        const ssize_t written = send(sockfd, &byte, sizeof(byte), 0);
-        if (written < 0)
-            DIE("Write error: %s", strerror(errno));
-        if (written == 0)
-            ERR("Warning: No bytes were sent. Ignoring...");
+    size_t buf_pos = 0;
+    char buf[BUF_SZ];
+
+    int c = 0;
+    while (c != EOF) {
+        c = getchar();
+
+        if (c != EOF)
+            buf[buf_pos++] = c;
+
+        if (c == EOF || buf_pos >= BUF_SZ) {
+            /*
+             * Send the data in the buffer, and reset the buffer position.
+             */
+            const ssize_t written = send(sockfd, buf, buf_pos, 0);
+            if (written < 0)
+                DIE("Write error: %s", strerror(errno));
+            if (written == 0)
+                ERR("Warning: No bytes were sent. Ignoring...");
+
+            buf_pos = 0;
+        }
     }
 
     /*
