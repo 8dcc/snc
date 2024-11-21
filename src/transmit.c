@@ -38,6 +38,12 @@
  */
 #define BUF_SZ 1000
 
+/*
+ * If defined, the transmission progress will be printed with `print_progress',
+ * defined in "util.c".
+ */
+#define SNC_PRINT_PROGRESS
+
 /*----------------------------------------------------------------------------*/
 
 static bool send_data(int sockfd, void* data, size_t data_sz) {
@@ -101,6 +107,7 @@ void snc_transmit(const char* ip, const char* port) {
      */
     size_t buf_pos = 0;
     char buf[BUF_SZ];
+    size_t total_transmitted = 0;
 
     int c = 0;
     while (c != EOF) {
@@ -115,9 +122,19 @@ void snc_transmit(const char* ip, const char* port) {
              */
             if (!send_data(sockfd, buf, buf_pos))
                 DIE("Send error: %s", strerror(errno));
+            total_transmitted += buf_pos;
+
+#ifdef SNC_PRINT_PROGRESS
+            print_progress("Transmitted", total_transmitted);
+#endif
+
             buf_pos = 0;
         }
     }
+
+#ifdef SNC_PRINT_PROGRESS
+    fputc('\n', stderr);
+#endif
 
     /*
      * Close the socket descriptor, and free the linked list of `addrinfo'

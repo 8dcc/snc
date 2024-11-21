@@ -92,3 +92,62 @@ void print_sockaddr(FILE* fp, struct sockaddr_storage* info) {
     inet_ntop(info->ss_family, addr, dst, sizeof(dst));
     fprintf(fp, "%s, %d", dst, port);
 }
+
+void print_progress(const char* verb, size_t progress) {
+    /*
+     * List of units for printing the `progress'. Each unit should be 1024 bytes
+     * appart from each other. You can safely add or remove units to this array
+     * if you want more or less precision.
+     */
+    static const char* unit_names[] = {
+        "bytes",
+        "KiB",
+        "MiB",
+        "GiB",
+    };
+
+    /*
+     * The `progress' will be printed if it advanced at least `PROGRESS_STEP'
+     * times since the last printed value.
+     */
+    static const double PROGRESS_STEP = 1.25;
+    static size_t last_progress       = 0;
+    static int last_printed_len       = 0;
+
+    /*
+     * Calculate the current progress, and check if it changed enough for us to
+     * print it.
+     */
+    if (progress < last_progress * PROGRESS_STEP)
+        return;
+
+    /*
+     * Convert progress (originally in bytes) to the appropriate unit.
+     */
+    size_t unit_name_idx   = 0;
+    size_t pretty_progress = progress;
+    while (pretty_progress >= 1024 && unit_name_idx + 1 < LENGTH(unit_names)) {
+        pretty_progress /= 1024;
+        unit_name_idx++;
+    }
+
+    const int printed_len = fprintf(stderr,
+                                    "\r%s %zu %s.",
+                                    verb,
+                                    pretty_progress,
+                                    unit_names[unit_name_idx]);
+    if (printed_len < 0)
+        return;
+
+    /*
+     * If the last printed text was longer, remove trailing characters.
+     */
+    for (int i = printed_len; i < last_printed_len; i++)
+        fputc(' ', stderr);
+
+    /*
+     * Store the values for future calls
+     */
+    last_progress    = progress;
+    last_printed_len = printed_len;
+}

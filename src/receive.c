@@ -43,6 +43,12 @@
 #define SNC_PRINT_PEER_INFO
 
 /*
+ * If defined, the transmission progress will be printed with `print_progress',
+ * defined in "util.c".
+ */
+#define SNC_PRINT_PROGRESS
+
+/*
  * Maximum number of connections that the receiver can wait for. See the second
  * parameter of listen(2).
  */
@@ -101,7 +107,7 @@ void snc_receive(const char* port) {
     /*
      * We `bind' the local port to the socket descriptor. The port (along with
      * the IP address) should be inside a `sockaddr' structure; and,
-     * conviniently, `getaddrinfo' filled that information inside the
+     * conveniently, `getaddrinfo' filled that information inside the
      * `self_info->ai_addr' member.
      */
     status = bind(sockfd_listen, self_info->ai_addr, self_info->ai_addrlen);
@@ -137,7 +143,7 @@ void snc_receive(const char* port) {
         DIE("Could not accept incoming connection: %s", strerror(errno));
 
 #ifdef SNC_PRINT_PEER_INFO
-    fprintf(stderr, "Incomming connection from: ");
+    fprintf(stderr, "Incoming connection from: ");
     print_sockaddr(stderr, &peer_addr);
     fprintf(stderr, "\n---------------------------\n");
 #endif
@@ -147,6 +153,7 @@ void snc_receive(const char* port) {
      * socket descriptor (returned by `accept'), not the socket descriptor used
      * for listening for new connections (returned by `socket').
      */
+    size_t total_received = 0;
     char buf[BUF_SZ];
     for (;;) {
         const ssize_t num_read = recv(sockfd_connection, buf, sizeof(buf), 0);
@@ -155,10 +162,20 @@ void snc_receive(const char* port) {
         if (num_read == 0)
             break;
 
+#ifdef SNC_PRINT_PROGRESS
+        print_progress("Received", total_received);
+#endif
+
         for (ssize_t i = 0; i < num_read; i++)
             putchar(buf[i]);
         fflush(stdout);
+
+        total_received += num_read;
     }
+
+#ifdef SNC_PRINT_PROGRESS
+    fputc('\n', stderr);
+#endif
 
     close(sockfd_connection);
     close(sockfd_listen);
