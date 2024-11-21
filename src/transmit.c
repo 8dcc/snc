@@ -17,6 +17,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -32,11 +33,27 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * Size of the buffer used when reading data.
+ * Size of the buffer used when reading and sending data.
  */
 #define BUF_SZ 1000
 
 /*----------------------------------------------------------------------------*/
+
+static bool send_data(int sockfd, void* data, size_t data_sz) {
+    size_t total_sent = 0;
+
+    while (data_sz > 0) {
+        const ssize_t sent =
+          send(sockfd, &((char*)data)[total_sent], data_sz, 0);
+        if (sent < 0)
+            return false;
+
+        total_sent += sent;
+        data_sz -= sent;
+    }
+
+    return true;
+}
 
 void snc_transmit(const char* ip, const char* port) {
     int status;
@@ -95,12 +112,8 @@ void snc_transmit(const char* ip, const char* port) {
             /*
              * Send the data in the buffer, and reset the buffer position.
              */
-            const ssize_t written = send(sockfd, buf, buf_pos, 0);
-            if (written < 0)
-                DIE("Write error: %s", strerror(errno));
-            if (written == 0)
-                ERR("Warning: No bytes were sent. Ignoring...");
-
+            if (!send_data(sockfd, buf, buf_pos))
+                DIE("Send error: %s", strerror(errno));
             buf_pos = 0;
         }
     }
