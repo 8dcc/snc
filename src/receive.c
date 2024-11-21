@@ -142,26 +142,29 @@ void snc_receive(const char* port) {
     fprintf(stderr, "\n---------------------------\n");
 #endif
 
+#ifdef SNC_PRINT_PROGRESS
+    size_t total_received = 0;
+#endif
+
     /*
      * Receive the data from the connection, one byte at a time. Note how we use
      * the connection socket descriptor (returned by `accept'), not the socket
      * descriptor used for listening for new connections (returned by `socket').
      */
-    size_t total_received = 0;
     for (;;) {
         char c;
-        const ssize_t num_read = recv(sockfd_connection, &c, sizeof(c), 0);
-        if (num_read < 0)
-            DIE("Read error: %s", strerror(errno));
-        if (num_read == 0)
+        const ssize_t received = recv(sockfd_connection, &c, sizeof(c), 0);
+        if (received < 0)
+            DIE("Receive error: %s", strerror(errno));
+        if (received == 0)
             break;
 
 #ifdef SNC_PRINT_PROGRESS
+        total_received += received;
         print_progress("Received", total_received);
 #endif
 
         putchar(c);
-        total_received += num_read;
     }
 
 #ifdef SNC_PRINT_PROGRESS

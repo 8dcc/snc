@@ -75,6 +75,10 @@ void snc_transmit(const char* ip, const char* port) {
     if (status != 0)
         DIE("Connection error: %s", strerror(errno));
 
+#ifdef SNC_PRINT_PROGRESS
+    size_t total_transmitted = 0;
+#endif
+
     /*
      * Read characters from `stdin', and write them to `sockfd'.
      *
@@ -83,20 +87,18 @@ void snc_transmit(const char* ip, const char* port) {
      * one character at a time.
      */
     int c;
-    size_t total_transmitted = 0;
     while ((c = getchar()) != EOF) {
-        const char byte       = (char)c;
-        const ssize_t written = send(sockfd, &byte, sizeof(byte), 0);
-        if (written < 0)
-            DIE("Write error: %s", strerror(errno));
-        if (written == 0)
+        const char byte    = (char)c;
+        const ssize_t sent = send(sockfd, &byte, sizeof(byte), 0);
+        if (sent < 0)
+            DIE("Send error: %s", strerror(errno));
+        if (sent == 0)
             ERR("Warning: No bytes were sent. Ignoring...");
 
 #ifdef SNC_PRINT_PROGRESS
+        total_transmitted += sent;
         print_progress("Transmitted", total_transmitted);
 #endif
-
-        total_transmitted += written;
     }
 
 #ifdef SNC_PRINT_PROGRESS
