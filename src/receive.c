@@ -48,6 +48,11 @@
  */
 #define SNC_LISTEN_QUEUE_SZ 10
 
+/*
+ * Size of the buffer used when receiving and writing data.
+ */
+#define BUF_SZ 1000
+
 /*----------------------------------------------------------------------------*/
 
 void snc_receive(const char* port) {
@@ -137,19 +142,21 @@ void snc_receive(const char* port) {
 #endif
 
     /*
-     * Receive the data from the connection, one byte at a time. Note how we use
-     * the connection socket descriptor (returned by `accept'), not the socket
-     * descriptor used for listening for new connections (returned by `socket').
+     * Receive the data from the connection. Note how we use the connection
+     * socket descriptor (returned by `accept'), not the socket descriptor used
+     * for listening for new connections (returned by `socket').
      */
+    char buf[BUF_SZ];
     for (;;) {
-        char c;
-        const ssize_t num_read = recv(sockfd_connection, &c, sizeof(c), 0);
+        const ssize_t num_read = recv(sockfd_connection, buf, sizeof(buf), 0);
         if (num_read < 0)
             DIE("Read error: %s", strerror(errno));
         if (num_read == 0)
             break;
 
-        putchar(c);
+        for (ssize_t i = 0; i < num_read; i++)
+            putchar(buf[i]);
+        fflush(stdout);
     }
 
     close(sockfd_connection);
