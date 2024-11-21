@@ -55,4 +55,12 @@ void list_interfaces(FILE* fp);
  */
 void print_sockaddr(FILE* fp, struct sockaddr_storage* info);
 
+/*
+ * Print the progress of a generic operation. The `verb' argument indicates the
+ * action name (used for printing), and the `progress' argument indicates the
+ * current progress of the operation in bytes. See the function definition for
+ * more details.
+ */
+void print_progress(const char* verb, size_t progress);
+
 #endif /* UTIL_H_ */

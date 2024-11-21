@@ -29,6 +29,12 @@
 #include "include/util.h"
 #include "include/transmit.h"
 
+/*
+ * If defined, the transmission progress will be printed with `print_progress',
+ * defined in "util.c".
+ */
+#define SNC_PRINT_PROGRESS
+
 void snc_transmit(const char* ip, const char* port) {
     int status;
 
@@ -77,6 +83,7 @@ void snc_transmit(const char* ip, const char* port) {
      * one character at a time.
      */
     int c;
+    size_t total_transmitted = 0;
     while ((c = getchar()) != EOF) {
         const char byte       = (char)c;
         const ssize_t written = send(sockfd, &byte, sizeof(byte), 0);
@@ -84,7 +91,17 @@ void snc_transmit(const char* ip, const char* port) {
             DIE("Write error: %s", strerror(errno));
         if (written == 0)
             ERR("Warning: No bytes were sent. Ignoring...");
+
+#ifdef SNC_PRINT_PROGRESS
+        print_progress("Transmitted", total_transmitted);
+#endif
+
+        total_transmitted += written;
     }
+
+#ifdef SNC_PRINT_PROGRESS
+    fputc('\n', stderr);
+#endif
 
     /*
      * Close the socket descriptor, and free the linked list of `addrinfo'
