@@ -89,6 +89,10 @@ static void show_help(const char* self) {
 
 /*----------------------------------------------------------------------------*/
 
+/*
+ * TODO: Handle `SIGINT', send remaining data and close connections.
+ */
+
 int main(int argc, char** argv) {
     const enum EMode mode = get_mode(argc, argv);
 
