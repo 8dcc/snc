@@ -33,7 +33,8 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * Size of the buffer used when reading and sending data.
+ * Size of the buffer used when reading and sending data. Independent of the
+ * buffer size for receiving/writing in "receive.c".
  */
 #define BUF_SZ 1000
 

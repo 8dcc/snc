@@ -49,7 +49,8 @@
 #define SNC_LISTEN_QUEUE_SZ 10
 
 /*
- * Size of the buffer used when receiving and writing data.
+ * Size of the buffer used when receiving and writing data. Independent of the
+ * buffer size for reading/sending in "transmit.c".
  */
 #define BUF_SZ 1000
 
