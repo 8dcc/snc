@@ -22,10 +22,13 @@
 /*
  * Main function for the "transmit" mode.
  *
- * Note that the format of the `ip' and `port' arguments should match any valid
- * inputs for `getaddrinfo'. Note that if the port is not numeric, it should
- * appear in the "/etc/services" file.
+ * Transmits all possible data from the `src_fp' file to the destination port
+ * `dst_port' at the `dst_ip'.
+ *
+ * Note that the format of the `dst_ip' and `dst_port' arguments should match
+ * any valid inputs for `getaddrinfo'. Note that if the port is not numeric, it
+ * should appear in the "/etc/services" file.
  */
-void snc_transmit(const char* ip, const char* port);
+void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port);
 
 #endif /* TRANSMIT_H_ */

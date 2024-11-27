@@ -56,7 +56,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-void snc_receive(const char* port) {
+void snc_receive(const char* src_port, FILE* dst_fp) {
     int status;
 
 #ifdef SNC_LIST_INTERFACES
@@ -84,7 +84,7 @@ void snc_receive(const char* port) {
      * indicate that we want to obtain information about or own IP address.
      */
     struct addrinfo* self_info;
-    status = getaddrinfo(NULL, port, &hints, &self_info);
+    status = getaddrinfo(NULL, src_port, &hints, &self_info);
     if (status != 0)
         DIE("Could not obtaining our address info: %s", gai_strerror(status));
 
@@ -132,7 +132,7 @@ void snc_receive(const char* port) {
     struct sockaddr_storage peer_addr;
     socklen_t peer_addr_sz = sizeof(peer_addr);
     const int sockfd_connection =
-      accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
+        accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
     if (sockfd_connection < 0)
         DIE("Could not accept incoming connection: %s", strerror(errno));
 
@@ -164,7 +164,8 @@ void snc_receive(const char* port) {
         print_progress("Received", total_received);
 #endif
 
-        putchar(c);
+        fputc(c, dst_fp);
+        fflush(dst_fp);
     }
 
 #ifdef SNC_PRINT_PROGRESS

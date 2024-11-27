@@ -35,7 +35,7 @@
  */
 #define SNC_PRINT_PROGRESS
 
-void snc_transmit(const char* ip, const char* port) {
+void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     int status;
 
     /*
@@ -53,7 +53,7 @@ void snc_transmit(const char* ip, const char* port) {
      * Obtain the address information from the specified hints.
      */
     struct addrinfo* server_info;
-    status = getaddrinfo(ip, port, &hints, &server_info);
+    status = getaddrinfo(dst_ip, dst_port, &hints, &server_info);
     if (status != 0)
         DIE("Could not obtaining address info: %s", gai_strerror(status));
 
@@ -87,7 +87,7 @@ void snc_transmit(const char* ip, const char* port) {
      * one character at a time.
      */
     int c;
-    while ((c = getchar()) != EOF) {
+    while ((c = fgetc(src_fp)) != EOF) {
         const char byte    = (char)c;
         const ssize_t sent = send(sockfd, &byte, sizeof(byte), 0);
         if (sent < 0)
