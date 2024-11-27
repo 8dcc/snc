@@ -62,7 +62,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-void snc_receive(const char* port) {
+void snc_receive(const char* src_port, FILE* dst_fp) {
     int status;
 
 #ifdef SNC_LIST_INTERFACES
@@ -90,7 +90,7 @@ void snc_receive(const char* port) {
      * indicate that we want to obtain information about or own IP address.
      */
     struct addrinfo* self_info;
-    status = getaddrinfo(NULL, port, &hints, &self_info);
+    status = getaddrinfo(NULL, src_port, &hints, &self_info);
     if (status != 0)
         DIE("Could not obtaining our address info: %s", gai_strerror(status));
 
@@ -171,8 +171,8 @@ void snc_receive(const char* port) {
 #endif
 
         for (ssize_t i = 0; i < received; i++)
-            putchar(buf[i]);
-        fflush(stdout);
+            fputc(buf[i], dst_fp);
+        fflush(dst_fp);
     }
 
 #ifdef SNC_PRINT_PROGRESS

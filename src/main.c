@@ -98,14 +98,14 @@ int main(int argc, char** argv) {
 
     switch (mode) {
         case MODE_RECEIVE:
-            snc_receive(SNC_PORT);
+            snc_receive(SNC_PORT, stdout);
             break;
 
         case MODE_TRANSMIT:
             if (argc < 3)
                 DIE("Not enough arguments for the specified mode.");
 
-            snc_transmit(argv[2], SNC_PORT);
+            snc_transmit(stdin, argv[2], SNC_PORT);
             break;
 
         case MODE_HELP:

@@ -62,7 +62,7 @@ static bool send_data(int sockfd, void* data, size_t data_sz) {
     return true;
 }
 
-void snc_transmit(const char* ip, const char* port) {
+void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     int status;
 
     /*
@@ -80,7 +80,7 @@ void snc_transmit(const char* ip, const char* port) {
      * Obtain the address information from the specified hints.
      */
     struct addrinfo* server_info;
-    status = getaddrinfo(ip, port, &hints, &server_info);
+    status = getaddrinfo(dst_ip, dst_port, &hints, &server_info);
     if (status != 0)
         DIE("Could not obtaining address info: %s", gai_strerror(status));
 
@@ -114,7 +114,7 @@ void snc_transmit(const char* ip, const char* port) {
 
     int c = 0;
     while (c != EOF) {
-        c = getchar();
+        c = fgetc(src_fp);
 
         if (c != EOF)
             buf[buf_pos++] = c;

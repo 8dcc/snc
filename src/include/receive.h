@@ -21,7 +21,14 @@
 
 /*
  * Main function for the "receive" mode.
+ *
+ * Listens and receives all possible data from the local `src_port' to the
+ * destination file `dst_fp'.
+ *
+ * Just like in `snc_transmit', the format of the `src_port' argument should
+ * match any valid input for `getaddrinfo'. If it's not numeric, it should
+ * appear in the "/etc/services" file.
  */
-void snc_receive(const char* port);
+void snc_receive(const char* src_port, FILE* dst_fp);
 
 #endif /* RECEIVE_H_ */
