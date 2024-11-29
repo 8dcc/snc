@@ -107,21 +107,6 @@ void print_progress(const char* verb, size_t progress) {
     };
 
     /*
-     * The `progress' will be printed if it advanced at least `PROGRESS_STEP'
-     * times since the last printed value.
-     */
-    static const double PROGRESS_STEP = 1.25;
-    static size_t last_progress       = 0;
-    static int last_printed_len       = 0;
-
-    /*
-     * Calculate the current progress, and check if it changed enough for us to
-     * print it.
-     */
-    if (progress < last_progress * PROGRESS_STEP)
-        return;
-
-    /*
      * Convert progress (originally in bytes) to the appropriate unit.
      */
     size_t unit_name_idx   = 0;
@@ -148,12 +133,36 @@ void print_progress(const char* verb, size_t progress) {
     /*
      * If the last printed text was longer, remove trailing characters.
      */
+    static int last_printed_len = 0;
     for (int i = printed_len; i < last_printed_len; i++)
         fputc(' ', stderr);
 
     /*
-     * Store the values for future calls
+     * Store the number of characters we have written, to make sure that future
+     * calls can clear the trailing characters, if necessary.
      */
-    last_progress    = progress;
     last_printed_len = printed_len;
+}
+
+void print_partial_progress(const char* verb, size_t progress) {
+    /*
+     * The `progress' will be printed if it advanced at least `PROGRESS_STEP'
+     * times since the last printed value.
+     */
+    static const double PROGRESS_STEP = 1.25;
+    static size_t last_progress       = 0;
+
+    /*
+     * Calculate the current progress, and check if it changed enough for us to
+     * print it.
+     */
+    if (progress < last_progress * PROGRESS_STEP)
+        return;
+
+    print_progress(verb, progress);
+
+    /*
+     * Store the values for future calls.
+     */
+    last_progress = progress;
 }

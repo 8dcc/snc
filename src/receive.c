@@ -132,7 +132,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     struct sockaddr_storage peer_addr;
     socklen_t peer_addr_sz = sizeof(peer_addr);
     const int sockfd_connection =
-        accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
+      accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
     if (sockfd_connection < 0)
         DIE("Could not accept incoming connection: %s", strerror(errno));
 
@@ -161,7 +161,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
 
 #ifdef SNC_PRINT_PROGRESS
         total_received += received;
-        print_progress("Received", total_received);
+        print_partial_progress("Received", total_received);
 #endif
 
         fputc(c, dst_fp);
@@ -169,6 +169,10 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     }
 
 #ifdef SNC_PRINT_PROGRESS
+    /*
+     * After we are done, we want to print the exact progress unconditionally.
+     */
+    print_progress("Transmitted", total_received);
     fputc('\n', stderr);
 #endif
 
