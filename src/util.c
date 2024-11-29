@@ -125,17 +125,23 @@ void print_progress(const char* verb, size_t progress) {
      * Convert progress (originally in bytes) to the appropriate unit.
      */
     size_t unit_name_idx   = 0;
-    size_t pretty_progress = progress;
+    double pretty_progress = progress;
     while (pretty_progress >= 1024 && unit_name_idx + 1 < LENGTH(unit_names)) {
-        pretty_progress /= 1024;
+        pretty_progress /= 1024.0;
         unit_name_idx++;
     }
 
-    const int printed_len = fprintf(stderr,
-                                    "\r%s %zu %s.",
-                                    verb,
-                                    pretty_progress,
-                                    unit_names[unit_name_idx]);
+    const int printed_len = (unit_name_idx == 0)
+                              ? fprintf(stderr,
+                                        "\r%s %zu %s.",
+                                        verb,
+                                        progress,
+                                        unit_names[unit_name_idx])
+                              : fprintf(stderr,
+                                        "\r%s %.2f %s.",
+                                        verb,
+                                        pretty_progress,
+                                        unit_names[unit_name_idx]);
     if (printed_len < 0)
         return;
 
