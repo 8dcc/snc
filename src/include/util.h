@@ -58,9 +58,21 @@ void print_sockaddr(FILE* fp, struct sockaddr_storage* info);
 /*
  * Print the progress of a generic operation. The `verb' argument indicates the
  * action name (used for printing), and the `progress' argument indicates the
- * current progress of the operation in bytes. See the function definition for
- * more details.
+ * current progress of the operation in bytes.
+ *
+ * This function clears the current line, and overwrites the trailing characters
+ * from the previous call.
+ *
+ * See the function definition for more details.
  */
 void print_progress(const char* verb, size_t progress);
+
+/*
+ * Keep track of the `progress' history, and call `print_progress' when there is
+ * a big enough difference with the previously printed `progress'.
+ *
+ * This "big enough difference" is defined inside the function itself.
+ */
+void print_partial_progress(const char* verb, size_t progress);
 
 #endif /* UTIL_H_ */

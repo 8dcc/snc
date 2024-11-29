@@ -128,7 +128,7 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
 
 #ifdef SNC_PRINT_PROGRESS
             total_transmitted += buf_pos;
-            print_progress("Transmitted", total_transmitted);
+            print_partial_progress("Transmitted", total_transmitted);
 #endif
 
             buf_pos = 0;
@@ -136,6 +136,10 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     }
 
 #ifdef SNC_PRINT_PROGRESS
+    /*
+     * After we are done, we want to print the exact progress unconditionally.
+     */
+    print_progress("Transmitted", total_transmitted);
     fputc('\n', stderr);
 #endif
 
