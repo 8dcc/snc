@@ -170,9 +170,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         print_partial_progress("Received", total_received);
 #endif
 
-        for (ssize_t i = 0; i < received; i++)
-            fputc(buf[i], dst_fp);
-        fflush(dst_fp);
+        fwrite(buf, received, sizeof(char), dst_fp);
     }
 
 #ifdef SNC_PRINT_PROGRESS
