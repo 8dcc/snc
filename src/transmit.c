@@ -112,17 +112,15 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     size_t buf_pos = 0;
     char buf[BUF_SZ];
 
-    int c = 0;
-    while (c != EOF) {
-        c = fgetc(src_fp);
+    int c;
+    while ((c = fgetc(src_fp)) != EOF) {
+        buf[buf_pos++] = c;
 
-        if (c != EOF)
-            buf[buf_pos++] = c;
-
-        if (c == EOF || buf_pos >= BUF_SZ) {
-            /*
-             * Send the data in the buffer, and reset the buffer position.
-             */
+        /*
+         * If the buffer is full, send the data in the buffer, and reset the
+         * buffer position.
+         */
+        if (buf_pos >= BUF_SZ) {
             if (!send_data(sockfd, buf, buf_pos))
                 DIE("Send error: %s", strerror(errno));
 
@@ -135,10 +133,18 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
         }
     }
 
+    /*
+     * Once we reach this poitn, `fgetc' returned EOF. Send the remaining data
+     * in the buffer (if any).
+     */
+    if (!send_data(sockfd, buf, buf_pos))
+        DIE("Send error: %s", strerror(errno));
+
 #ifdef SNC_PRINT_PROGRESS
     /*
      * After we are done, we want to print the exact progress unconditionally.
      */
+    total_transmitted += buf_pos;
     print_progress("Transmitted", total_transmitted);
     fputc('\n', stderr);
 #endif
