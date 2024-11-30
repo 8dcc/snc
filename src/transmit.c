@@ -17,6 +17,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,11 +30,37 @@
 #include "include/util.h"
 #include "include/transmit.h"
 
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Size of the buffer used when reading and sending data. Independent of the
+ * buffer size for receiving/writing in "receive.c".
+ */
+#define BUF_SZ 1000
+
 /*
  * If defined, the transmission progress will be printed with `print_progress',
  * defined in "util.c".
  */
 #define SNC_PRINT_PROGRESS
+
+/*----------------------------------------------------------------------------*/
+
+static bool send_data(int sockfd, void* data, size_t data_sz) {
+    size_t total_sent = 0;
+
+    while (data_sz > 0) {
+        const ssize_t sent =
+          send(sockfd, &((char*)data)[total_sent], data_sz, 0);
+        if (sent < 0)
+            return false;
+
+        total_sent += sent;
+        data_sz -= sent;
+    }
+
+    return true;
+}
 
 void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     int status;
@@ -81,30 +108,43 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
 
     /*
      * Read characters from `stdin', and write them to `sockfd'.
-     *
-     * TODO: We could probably improve this by buffering characters from
-     * `stdin', and sending the whole buffer to `send', rather than sending just
-     * one character at a time.
      */
+    size_t buf_pos = 0;
+    char buf[BUF_SZ];
+
     int c;
     while ((c = fgetc(src_fp)) != EOF) {
-        const char byte    = (char)c;
-        const ssize_t sent = send(sockfd, &byte, sizeof(byte), 0);
-        if (sent < 0)
-            DIE("Send error: %s", strerror(errno));
-        if (sent == 0)
-            ERR("Warning: No bytes were sent. Ignoring...");
+        buf[buf_pos++] = c;
+
+        /*
+         * If the buffer is full, send the data in the buffer, and reset the
+         * buffer position.
+         */
+        if (buf_pos >= BUF_SZ) {
+            if (!send_data(sockfd, buf, buf_pos))
+                DIE("Send error: %s", strerror(errno));
 
 #ifdef SNC_PRINT_PROGRESS
-        total_transmitted += sent;
-        print_partial_progress("Transmitted", total_transmitted);
+            total_transmitted += buf_pos;
+            print_partial_progress("Transmitted", total_transmitted);
 #endif
+
+            buf_pos = 0;
+        }
     }
+
+    /*
+     * Once we reach this poitn, `fgetc' returned EOF. Send the remaining data
+     * in the buffer (if any).
+     */
+    if (!send_data(sockfd, buf, buf_pos))
+        DIE("Send error: %s", strerror(errno));
 
 #ifdef SNC_PRINT_PROGRESS
     /*
      * After we are done, we want to print the exact progress unconditionally.
      */
+    total_transmitted += buf_pos;
     print_progress("Transmitted", total_transmitted);
     fputc('\n', stderr);
 #endif

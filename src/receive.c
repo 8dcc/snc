@@ -43,16 +43,22 @@
 #define SNC_PRINT_PEER_INFO
 
 /*
+ * If defined, the transmission progress will be printed with `print_progress',
+ * defined in "util.c".
+ */
+#define SNC_PRINT_PROGRESS
+
+/*
  * Maximum number of connections that the receiver can wait for. See the second
  * parameter of listen(2).
  */
 #define SNC_LISTEN_QUEUE_SZ 10
 
 /*
- * If defined, the transmission progress will be printed with `print_progress',
- * defined in "util.c".
+ * Size of the buffer used when receiving and writing data. Independent of the
+ * buffer size for reading/sending in "transmit.c".
  */
-#define SNC_PRINT_PROGRESS
+#define BUF_SZ 1000
 
 /*----------------------------------------------------------------------------*/
 
@@ -147,13 +153,13 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
 #endif
 
     /*
-     * Receive the data from the connection, one byte at a time. Note how we use
-     * the connection socket descriptor (returned by `accept'), not the socket
-     * descriptor used for listening for new connections (returned by `socket').
+     * Receive the data from the connection. Note how we use the connection
+     * socket descriptor (returned by `accept'), not the socket descriptor used
+     * for listening for new connections (returned by `socket').
      */
+    char buf[BUF_SZ];
     for (;;) {
-        char c;
-        const ssize_t received = recv(sockfd_connection, &c, sizeof(c), 0);
+        const ssize_t received = recv(sockfd_connection, buf, sizeof(buf), 0);
         if (received < 0)
             DIE("Receive error: %s", strerror(errno));
         if (received == 0)
@@ -164,8 +170,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         print_partial_progress("Received", total_received);
 #endif
 
-        fputc(c, dst_fp);
-        fflush(dst_fp);
+        fwrite(buf, received, sizeof(char), dst_fp);
     }
 
 #ifdef SNC_PRINT_PROGRESS
