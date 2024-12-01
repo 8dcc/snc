@@ -45,9 +45,9 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * List the available interfaces to the specified `FILE'.
+ * Print the list of available local interfaces, to the specified `FILE'.
  */
-void list_interfaces(FILE* fp);
+void print_interface_list(FILE* fp);
 
 /*
  * Print a generic `sockaddr' structure to the specified `FILE'. Prints both
@@ -74,5 +74,14 @@ void print_progress(const char* verb, size_t progress);
  * This "big enough difference" is defined inside the function itself.
  */
 void print_partial_progress(const char* verb, size_t progress);
+
+/*----------------------------------------------------------------------------*/
+
+/*
+ * Print a simple text separator with a fixed width to the specified `FILE'.
+ */
+static inline void print_separator(FILE* fp) {
+    fputs("--------------------------------------------------\n", fp);
+}
 
 #endif /* UTIL_H_ */

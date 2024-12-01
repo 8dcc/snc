@@ -28,16 +28,12 @@
 
 #include "include/util.h"
 
-void list_interfaces(FILE* fp) {
+void print_interface_list(FILE* fp) {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
         ERR("Failed to list interfaces.");
         return;
     }
-
-    fprintf(fp,
-            "---------------------------\n"
-            "Listening on any interface:\n");
 
     for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         /* Ignore non-INET address families and loopback interfaces */
@@ -56,10 +52,8 @@ void list_interfaces(FILE* fp) {
         if (code != 0)
             continue;
 
-        fprintf(fp, "%s: %s\n", ifa->ifa_name, host);
+        fprintf(fp, "%-6s - %s\n", ifa->ifa_name, host);
     }
-
-    fprintf(fp, "---------------------------\n");
 
     freeifaddrs(ifaddr);
 }

@@ -65,10 +65,6 @@
 void snc_receive(const char* src_port, FILE* dst_fp) {
     int status;
 
-#ifdef SNC_LIST_INTERFACES
-    list_interfaces(stderr);
-#endif
-
     /*
      * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
      *
@@ -123,6 +119,13 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     if (status != 0)
         DIE("Could not listen for connections: %s", strerror(errno));
 
+#ifdef SNC_LIST_INTERFACES
+    print_separator(stderr);
+    fprintf(stderr, "Listening on port '%s'. Local interfaces:\n", src_port);
+    print_interface_list(stderr);
+    print_separator(stderr);
+#endif
+
     /*
      * We accept the incoming connection, and we get a new socket descriptor. It
      * will be used to read (and optionally write) data.
@@ -145,7 +148,8 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
 #ifdef SNC_PRINT_PEER_INFO
     fprintf(stderr, "Incoming connection from: ");
     print_sockaddr(stderr, &peer_addr);
-    fprintf(stderr, "\n---------------------------\n");
+    fputc('\n', stderr);
+    print_separator(stderr);
 #endif
 
 #ifdef SNC_PRINT_PROGRESS
