@@ -140,6 +140,14 @@ static void parse_args(int argc, char** argv) {
 }
 
 /*
+ * Validate that there current option combination is valid.
+ */
+static inline void validate_global_opts(void) {
+    if (g_opt_receive && g_opt_transmit)
+        DIE("Error: Can't receive and transmit at the same time.");
+}
+
+/*
  * List the available command-line arguments.
  */
 static void show_usage(const char* self) {
@@ -175,6 +183,7 @@ static void show_usage(const char* self) {
 
 int main(int argc, char** argv) {
     parse_args(argc, argv);
+    validate_global_opts();
 
     if (g_opt_help) {
         show_usage(argc >= 1 ? argv[0] : "snc");
