@@ -17,6 +17,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -35,55 +36,134 @@
 
 /*----------------------------------------------------------------------------*/
 
-/*
- * Main modes for the program.
- */
-enum EMode {
-    MODE_ERR_UNK,
-    MODE_ERR_ARGC,
-    MODE_HELP,
-    MODE_RECEIVE,
-    MODE_TRANSMIT,
+/* Globals used for program arguments */
+bool g_opt_help        = false;
+bool g_opt_receive     = false;
+bool g_opt_transmit    = false;
+char* g_param_transmit = NULL;
+
+struct ProgramOption {
+    /*
+     * If an element of `argv' matches the `opt_short' (e.g. "-r") or `opt_long'
+     * members (e.g. "--transmit"), then the `opt_ptr' member is set to `true'.
+     *
+     * The `opt_short' member can be NULL, but the `opt_long' member is
+     * mandatory.
+     */
+    bool* opt_ptr;
+    const char* opt_short;
+    const char* opt_long;
+
+    /*
+     * If the current option is found in `argv', and the `param' member is not
+     * NULL, the `param_ptr' member will be set to the next element in `argv'.
+     *
+     * The `param' string will only be used when printing the program usage.
+     */
+    const char* param;
+    char** param_ptr;
+
+    /*
+     * Description for the current option, used when printing the program usage.
+     */
+    const char* description;
 };
 
-struct {
-    enum EMode mode;
-    const char* arg;
-    const char* extra_args;
-    const char* desc;
-} g_mode_args[] = {
-    { MODE_HELP, "h", NULL, "Show the help." },
-    { MODE_RECEIVE, "r", NULL, "Receive data from incoming transmitters." },
-    { MODE_TRANSMIT, "t", "TARGET", "Transmit data into the TARGET receiver." },
+static struct ProgramOption g_options[] = {
+    {
+      &g_opt_help,
+      "-h",
+      "--help",
+      NULL,
+      NULL,
+      "Show the help.",
+    },
+    {
+      &g_opt_receive,
+      "-r",
+      "--receive",
+      NULL,
+      NULL,
+      "Receive data from incoming transmitters.",
+    },
+    {
+      &g_opt_transmit,
+      "-t",
+      "--transmit",
+      "TARGET",
+      &g_param_transmit,
+      "Transmit data into the TARGET receiver.",
+    },
 };
 
 /*----------------------------------------------------------------------------*/
 
 /*
- * Get the program mode from the command line arguments.
+ * Return a pointer to the specified `option' inside `g_options'. Returns NULL
+ * if not found.
  */
-static enum EMode get_mode(int argc, char** argv) {
-    if (argc < 2)
-        return MODE_ERR_ARGC;
+static inline struct ProgramOption* get_option(const char* option) {
+    for (size_t i = 0; i < LENGTH(g_options); i++)
+        if ((g_options[i].opt_short != NULL &&
+             !strcmp(option, g_options[i].opt_short)) ||
+            !strcmp(option, g_options[i].opt_long))
+            return &g_options[i];
 
-    const char* mode_argument = argv[1];
-    for (size_t i = 0; i < LENGTH(g_mode_args); i++)
-        if (!strcmp(mode_argument, g_mode_args[i].arg))
-            return g_mode_args[i].mode;
-
-    return MODE_ERR_UNK;
+    return NULL;
 }
 
 /*
- * List the avaliable command-line arguments.
+ * Parse the command-line arguments, setting the appropriate globals according
+ * to the `g_options' array.
  */
-static void show_help(const char* self) {
-    fprintf(stderr, "Usage:\n\n");
-    for (size_t i = 0; i < LENGTH(g_mode_args); i++) {
-        fprintf(stderr, "\t%s %s", self, g_mode_args[i].arg);
-        if (g_mode_args[i].extra_args != NULL)
-            fprintf(stderr, " %s", g_mode_args[i].extra_args);
-        fprintf(stderr, "\n\t\t%s\n\n", g_mode_args[i].desc);
+static void parse_args(int argc, char** argv) {
+    for (int i = 1; i < argc; i++) {
+        const struct ProgramOption* cur_option = get_option(argv[i]);
+        if (cur_option == NULL)
+            DIE("Error: Unknown option '%s'.", argv[i]);
+
+        *(cur_option->opt_ptr) = true;
+
+        /*
+         * If this option expects an additional parameter, make sure that
+         * this is not the last element of `argv', and store it.
+         */
+        if (cur_option->param != NULL) {
+            i++;
+            if (i >= argc)
+                DIE("Error: Option '%s' expects a '%s' parameter.",
+                    argv[i - 1],
+                    cur_option->param);
+            *(cur_option->param_ptr) = argv[i];
+        }
+    }
+}
+
+/*
+ * List the available command-line arguments.
+ */
+static void show_usage(const char* self) {
+    printf("Usage: %s [OPTION]...\n\n"
+           "List of options:",
+           self);
+
+    /*
+     * For each option, print:
+     *   1. The short option (if any).
+     *   2. The long option with its extra parameter (if any).
+     *   3. The description, in its own line.
+     */
+    for (size_t i = 0; i < LENGTH(g_options); i++) {
+        printf("\n  ");
+
+        if (g_options[i].opt_short != NULL)
+            printf("%s, ", g_options[i].opt_short);
+
+        printf("%s", g_options[i].opt_long);
+        if (g_options[i].param != NULL)
+            printf(" %s", g_options[i].param);
+
+        printf("\n    %s\n", g_options[i].description);
     }
 }
 
@@ -94,29 +174,16 @@ static void show_help(const char* self) {
  */
 
 int main(int argc, char** argv) {
-    const enum EMode mode = get_mode(argc, argv);
+    parse_args(argc, argv);
 
-    switch (mode) {
-        case MODE_RECEIVE:
-            snc_receive(SNC_PORT, stdout);
-            break;
-
-        case MODE_TRANSMIT:
-            if (argc < 3)
-                DIE("Not enough arguments for the specified mode.");
-
-            snc_transmit(stdin, argv[2], SNC_PORT);
-            break;
-
-        case MODE_HELP:
-            show_help(argv[0]);
-            return 1;
-
-        case MODE_ERR_ARGC:
-            DIE("Not enough arguments.");
-
-        case MODE_ERR_UNK:
-            DIE("Unknown mode argument.");
+    if (g_opt_help) {
+        show_usage(argc >= 1 ? argv[0] : "snc");
+    } else if (g_opt_receive) {
+        snc_receive(SNC_PORT, stdout);
+    } else if (g_opt_transmit) {
+        snc_transmit(stdin, g_param_transmit, SNC_PORT);
+    } else {
+        DIE("Error: Not enough arguments. Expected a mode option.");
     }
 
     return 0;
