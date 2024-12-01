@@ -33,17 +33,31 @@ The help can be shown with the =--help= option.
 
 #+begin_src console
 $ snc --help
-Usage: snc [OPTION]...
+Usage: ./snc [OPTION]...
 
 List of options:
   -h, --help
-    Show the help.
+    Print the help to 'stdout' and exit.
 
   -r, --receive
     Receive data from incoming transmitters.
 
   -t, --transmit TARGET
     Transmit data into the TARGET receiver.
+
+  -p, --port PORT
+    Specify the port for receiving or transferring data.
+
+  --print-interfaces
+    When receiving data, print the list of local interfaces, along with
+    their addresses. Useful when receiving data over a LAN.
+
+  --print-peer-info
+    When receiving data, print the peer information whenever a connection
+    is accepted.
+
+  --print-progress
+    Print the size of the received or transmitted data to 'stderr'.
 #+end_src
 
 To receive data from another machine, start the program in /receive/ mode. It will
