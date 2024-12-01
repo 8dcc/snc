@@ -28,12 +28,18 @@
 
 /*----------------------------------------------------------------------------*/
 
-/* Globals used for program arguments */
-bool g_opt_help        = false;
-bool g_opt_receive     = false;
-bool g_opt_transmit    = false;
-char* g_param_transmit = NULL;
-char* g_param_port     = "1337";
+/*
+ * Globals used for program arguments. A description can be found inside each
+ * entry of the 'g_options' array.
+ */
+static bool g_opt_help             = false;
+static bool g_opt_receive          = false;
+static bool g_opt_transmit         = false;
+static char* g_param_transmit      = NULL;
+static char* g_param_port          = "1337";
+bool g_opt_print_interfaces = false;
+bool g_opt_print_peer_info  = false;
+bool g_opt_print_progress   = false;
 
 struct ProgramOption {
     /*
@@ -70,7 +76,7 @@ static struct ProgramOption g_options[] = {
       "--help",
       NULL,
       NULL,
-      "Show the help.",
+      "Print the help to 'stdout' and exit.",
     },
     {
       &g_opt_receive,
@@ -95,6 +101,32 @@ static struct ProgramOption g_options[] = {
       "PORT",
       &g_param_port,
       "Specify the port for receiving or transferring data.",
+    },
+    {
+      &g_opt_print_interfaces,
+      NULL,
+      "--print-interfaces",
+      NULL,
+      NULL,
+      "When receiving data, print the list of local interfaces, along with \n"
+      "their addresses. Useful when receiving data over a LAN.",
+    },
+    {
+      &g_opt_print_peer_info,
+      NULL,
+      "--print-peer-info",
+      NULL,
+      NULL,
+      "When receiving data, print the peer information whenever a connection\n"
+      "is accepted.",
+    },
+    {
+      &g_opt_print_progress,
+      NULL,
+      "--print-progress",
+      NULL,
+      NULL,
+      "Print the size of the received or transmitted data to 'stderr'.",
     },
 };
 

@@ -28,6 +28,7 @@
 #include <sys/socket.h> /* socket(), etc. */
 
 #include "include/util.h"
+#include "include/main.h"
 #include "include/transmit.h"
 
 /*----------------------------------------------------------------------------*/
@@ -37,12 +38,6 @@
  * buffer size for receiving/writing in "receive.c".
  */
 #define BUF_SZ 1000
-
-/*
- * If defined, the transmission progress will be printed with `print_progress',
- * defined in "util.c".
- */
-#define SNC_PRINT_PROGRESS
 
 /*----------------------------------------------------------------------------*/
 
@@ -102,17 +97,13 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     if (status != 0)
         DIE("Connection error: %s", strerror(errno));
 
-#ifdef SNC_PRINT_PROGRESS
-    size_t total_transmitted = 0;
-#endif
-
     /*
      * Read characters from `stdin', and write them to `sockfd'.
      */
-    size_t buf_pos = 0;
-    char buf[BUF_SZ];
-
     int c;
+    char buf[BUF_SZ];
+    size_t buf_pos           = 0;
+    size_t total_transmitted = 0;
     while ((c = fgetc(src_fp)) != EOF) {
         buf[buf_pos++] = c;
 
@@ -124,10 +115,10 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
             if (!send_data(sockfd, buf, buf_pos))
                 DIE("Send error: %s", strerror(errno));
 
-#ifdef SNC_PRINT_PROGRESS
-            total_transmitted += buf_pos;
-            print_partial_progress("Transmitted", total_transmitted);
-#endif
+            if (g_opt_print_progress) {
+                total_transmitted += buf_pos;
+                print_partial_progress("Transmitted", total_transmitted);
+            }
 
             buf_pos = 0;
         }
@@ -140,14 +131,15 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     if (!send_data(sockfd, buf, buf_pos))
         DIE("Send error: %s", strerror(errno));
 
-#ifdef SNC_PRINT_PROGRESS
     /*
-     * After we are done, we want to print the exact progress unconditionally.
+     * After we are done, we want to print the exact progress. Notice how we
+     * call 'print_progress' instead of 'print_partial_progress'.
      */
-    total_transmitted += buf_pos;
-    print_progress("Transmitted", total_transmitted);
-    fputc('\n', stderr);
-#endif
+    if (g_opt_print_progress) {
+        total_transmitted += buf_pos;
+        print_progress("Transmitted", total_transmitted);
+        fputc('\n', stderr);
+    }
 
     /*
      * Close the socket descriptor, and free the linked list of `addrinfo'

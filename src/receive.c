@@ -27,26 +27,10 @@
 #include <sys/socket.h> /* socket(), etc. */
 
 #include "include/util.h"
+#include "include/main.h"
 #include "include/receive.h"
 
 /*----------------------------------------------------------------------------*/
-
-/*
- * If defined, interfaces will be listed on "receive" mode.
- */
-#define SNC_LIST_INTERFACES
-
-/*
- * If defined, the peer info will be displayed when a connection is accepted on
- * "receive" mode.
- */
-#define SNC_PRINT_PEER_INFO
-
-/*
- * If defined, the transmission progress will be printed with `print_progress',
- * defined in "util.c".
- */
-#define SNC_PRINT_PROGRESS
 
 /*
  * Maximum number of connections that the receiver can wait for. See the second
@@ -56,7 +40,7 @@
 
 /*
  * Size of the buffer used when receiving and writing data. Independent of the
- * buffer size for reading/sending in "transmit.c".
+ * buffer size for reading/sending in 'transmit.c'.
  */
 #define BUF_SZ 1000
 
@@ -119,12 +103,14 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     if (status != 0)
         DIE("Could not listen for connections: %s", strerror(errno));
 
-#ifdef SNC_LIST_INTERFACES
-    print_separator(stderr);
-    fprintf(stderr, "Listening on port '%s'. Local interfaces:\n", src_port);
-    print_interface_list(stderr);
-    print_separator(stderr);
-#endif
+    if (g_opt_print_interfaces) {
+        print_separator(stderr);
+        fprintf(stderr,
+                "Listening on port '%s'. Local interfaces:\n",
+                src_port);
+        print_interface_list(stderr);
+        print_separator(stderr);
+    }
 
     /*
      * We accept the incoming connection, and we get a new socket descriptor. It
@@ -145,16 +131,14 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     if (sockfd_connection < 0)
         DIE("Could not accept incoming connection: %s", strerror(errno));
 
-#ifdef SNC_PRINT_PEER_INFO
-    fprintf(stderr, "Incoming connection from: ");
-    print_sockaddr(stderr, &peer_addr);
-    fputc('\n', stderr);
-    print_separator(stderr);
-#endif
-
-#ifdef SNC_PRINT_PROGRESS
-    size_t total_received = 0;
-#endif
+    if (g_opt_print_peer_info) {
+        if (!g_opt_print_interfaces)
+            print_separator(stderr);
+        fprintf(stderr, "Incoming connection from: ");
+        print_sockaddr(stderr, &peer_addr);
+        fputc('\n', stderr);
+        print_separator(stderr);
+    }
 
     /*
      * Receive the data from the connection. Note how we use the connection
@@ -162,6 +146,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      * for listening for new connections (returned by `socket').
      */
     char buf[BUF_SZ];
+    size_t total_received = 0;
     for (;;) {
         const ssize_t received = recv(sockfd_connection, buf, sizeof(buf), 0);
         if (received < 0)
@@ -169,21 +154,22 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         if (received == 0)
             break;
 
-#ifdef SNC_PRINT_PROGRESS
-        total_received += received;
-        print_partial_progress("Received", total_received);
-#endif
+        if (g_opt_print_progress) {
+            total_received += received;
+            print_partial_progress("Received", total_received);
+        }
 
         fwrite(buf, received, sizeof(char), dst_fp);
     }
 
-#ifdef SNC_PRINT_PROGRESS
     /*
-     * After we are done, we want to print the exact progress unconditionally.
+     * After we are done, we want to print the exact progress. Notice how we
+     * call 'print_progress' instead of 'print_partial_progress'.
      */
-    print_progress("Transmitted", total_received);
-    fputc('\n', stderr);
-#endif
+    if (g_opt_print_progress) {
+        print_progress("Transmitted", total_received);
+        fputc('\n', stderr);
+    }
 
     close(sockfd_connection);
     close(sockfd_listen);
