@@ -29,37 +29,41 @@ $ sudo make install
 
 * Usage
 
-The help can be shown with the =h= command.
+The help can be shown with the =--help= option.
 
 #+begin_src console
-$ snc h
-Usage:
-    snc h       - Show this help.
-    snc r       - Start in "receive" mode.
-    snc t <IP>  - Transmit to specified IP address.
+$ snc --help
+Usage: snc [OPTION]...
+
+List of options:
+  -h, --help
+    Show the help.
+
+  -r, --receive
+    Receive data from incoming transmitters.
+
+  -t, --transmit TARGET
+    Transmit data into the TARGET receiver.
 #+end_src
 
 To receive data from another machine, start the program in /receive/ mode. It will
 start to listen, and print received data to =stdout=.
 
 #+begin_src console
-$ snc l
+$ snc --receive
 ...
 
-$ snc l > output.txt
+$ snc -r > output.txt
 #+end_src
 
 To transmit data to another machine, start the program in /transmit/ mode. It will
 read data from =stdin=, transmit it to the specified IP address.
 
 #+begin_src console
-$ snc c IP
+$ snc --transmit "IP"
 Type stuff here!
 ...
 It will send it to the receiver.
 
-$ snc c IP < input.txt
+$ snc -t "IP" < input.txt
 #+end_src
-
-The port for receiving and transmitting is hard-coded (as a macro) in the [[file:src/main.c][main.c]]
-source.
