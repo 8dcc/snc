@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -45,10 +46,11 @@ char* g_param_transmit = NULL;
 struct ProgramOption {
     /*
      * If an element of `argv' matches the `opt_short' (e.g. "-r") or `opt_long'
-     * members (e.g. "--transmit"), then the `opt_ptr' member is set to `true'.
+     * members (e.g. "--transmit"), then the `opt_ptr' member is set to `true'
+     * (as long as it's not NULL).
      *
-     * The `opt_short' member can be NULL, but the `opt_long' member is
-     * mandatory.
+     * The `opt_short' and `opt_ptr' members can be NULL, but the `opt_long'
+     * member is mandatory.
      */
     bool* opt_ptr;
     const char* opt_short;
@@ -122,7 +124,8 @@ static void parse_args(int argc, char** argv) {
         if (cur_option == NULL)
             DIE("Error: Unknown option '%s'.", argv[i]);
 
-        *(cur_option->opt_ptr) = true;
+        if (cur_option->opt_ptr != NULL)
+            *(cur_option->opt_ptr) = true;
 
         /*
          * If this option expects an additional parameter, make sure that
@@ -134,6 +137,8 @@ static void parse_args(int argc, char** argv) {
                 DIE("Error: Option '%s' expects a '%s' parameter.",
                     argv[i - 1],
                     cur_option->param);
+
+            assert(cur_option->param_ptr != NULL);
             *(cur_option->param_ptr) = argv[i];
         }
     }
