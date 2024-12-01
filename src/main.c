@@ -28,20 +28,12 @@
 
 /*----------------------------------------------------------------------------*/
 
-/*
- * Port used to communicate between a transmitter and a receiver.
- *
- * TODO: Allow the user to overwrite it through argv?
- */
-#define SNC_PORT "1337"
-
-/*----------------------------------------------------------------------------*/
-
 /* Globals used for program arguments */
 bool g_opt_help        = false;
 bool g_opt_receive     = false;
 bool g_opt_transmit    = false;
 char* g_param_transmit = NULL;
+char* g_param_port     = "1337";
 
 struct ProgramOption {
     /*
@@ -95,6 +87,14 @@ static struct ProgramOption g_options[] = {
       "TARGET",
       &g_param_transmit,
       "Transmit data into the TARGET receiver.",
+    },
+    {
+      NULL,
+      "-p",
+      "--port",
+      "PORT",
+      &g_param_port,
+      "Specify the port for receiving or transferring data.",
     },
 };
 
@@ -193,9 +193,9 @@ int main(int argc, char** argv) {
     if (g_opt_help) {
         show_usage(argc >= 1 ? argv[0] : "snc");
     } else if (g_opt_receive) {
-        snc_receive(SNC_PORT, stdout);
+        snc_receive(g_param_port, stdout);
     } else if (g_opt_transmit) {
-        snc_transmit(stdin, g_param_transmit, SNC_PORT);
+        snc_transmit(stdin, g_param_transmit, g_param_port);
     } else {
         DIE("Error: Not enough arguments. Expected a mode option.");
     }
