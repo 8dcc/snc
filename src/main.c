@@ -175,8 +175,9 @@ static void show_usage(const char* self) {
         printf("%s", g_options[i].opt_long);
         if (g_options[i].param != NULL)
             printf(" %s", g_options[i].param);
+        putchar('\n');
 
-        printf("\n    %s\n", g_options[i].description);
+        print_indentated(stdout, 4, g_options[i].description);
     }
 }
 

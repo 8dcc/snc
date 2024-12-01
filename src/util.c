@@ -28,6 +28,19 @@
 
 #include "include/util.h"
 
+void print_indentated(FILE* fp, int indent, const char* str) {
+    for (int i = 0; i < indent; i++)
+        fputc(' ', fp);
+
+    for (; *str != '\0'; str++) {
+        fputc(*str, fp);
+        if (*str == '\n')
+            for (int i = 0; i < indent; i++)
+                fputc(' ', fp);
+    }
+    fputc('\n', fp);
+}
+
 void print_interface_list(FILE* fp) {
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {

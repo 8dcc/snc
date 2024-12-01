@@ -45,6 +45,13 @@
 /*----------------------------------------------------------------------------*/
 
 /*
+ * Print the specified `str' to the specified `FILE', adding the specified
+ * `indentation' whenever a newline is encountered. Also prints a final newline
+ * whenever '\0' is encountered.
+ */
+void print_indentated(FILE* fp, int indentation, const char* str);
+
+/*
  * Print the list of available local interfaces, to the specified `FILE'.
  */
 void print_interface_list(FILE* fp);
