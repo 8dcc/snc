@@ -155,10 +155,11 @@ static inline void validate_global_opts(void) {
 /*
  * List the available command-line arguments.
  */
-static void show_usage(const char* self) {
-    printf("Usage: %s [OPTION]...\n\n"
-           "List of options:",
-           self);
+static void print_usage(FILE* fp, const char* self) {
+    fprintf(fp,
+            "Usage: %s [OPTION]...\n\n"
+            "List of options:",
+            self);
 
     /*
      * For each option, print:
@@ -167,17 +168,17 @@ static void show_usage(const char* self) {
      *   3. The description, in its own line.
      */
     for (size_t i = 0; i < LENGTH(g_options); i++) {
-        printf("\n  ");
+        fprintf(fp, "\n  ");
 
         if (g_options[i].opt_short != NULL)
-            printf("%s, ", g_options[i].opt_short);
+            fprintf(fp, "%s, ", g_options[i].opt_short);
 
-        printf("%s", g_options[i].opt_long);
+        fprintf(fp, "%s", g_options[i].opt_long);
         if (g_options[i].param != NULL)
-            printf(" %s", g_options[i].param);
-        putchar('\n');
+            fprintf(fp, " %s", g_options[i].param);
+        fputc('\n', fp);
 
-        print_indentated(stdout, 4, g_options[i].description);
+        print_indentated(fp, 4, g_options[i].description);
     }
 }
 
@@ -192,7 +193,7 @@ int main(int argc, char** argv) {
     validate_global_opts();
 
     if (g_opt_help) {
-        show_usage(argc >= 1 ? argv[0] : "snc");
+        print_usage(stdout, argc >= 1 ? argv[0] : "snc");
     } else if (g_opt_receive) {
         snc_receive(g_param_port, stdout);
     } else if (g_opt_transmit) {
