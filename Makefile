@@ -11,9 +11,12 @@ BIN=snc
 PREFIX=/usr/local
 BINDIR=$(PREFIX)/bin
 
+COMPLETIONFILE=snc-completion.bash
+COMPLETIONDIR=/etc/bash_completion.d
+
 #-------------------------------------------------------------------------------
 
-.PHONY: all clean install
+.PHONY: all clean install install-bin install-completion
 
 all: $(BIN)
 
@@ -21,9 +24,15 @@ clean:
 	rm -f $(OBJ)
 	rm -f $(BIN)
 
-install: $(BIN)
-	mkdir -p $(BINDIR)
+install: install-bin install-completion
+
+install-bin: $(BIN)
+	@mkdir -p $(BINDIR)
 	install -m 755 $^ $(BINDIR)
+
+install-completion: $(COMPLETIONFILE)
+	@mkdir -p $(COMPLETIONDIR)
+	install -m 644 $^ $(COMPLETIONDIR)
 
 #-------------------------------------------------------------------------------
 
