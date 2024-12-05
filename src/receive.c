@@ -167,7 +167,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      * call 'print_progress' instead of 'print_partial_progress'.
      */
     if (g_opt_print_progress) {
-        print_progress("Transmitted", total_received);
+        print_progress("Received", total_received);
         fputc('\n', stderr);
     }
 
