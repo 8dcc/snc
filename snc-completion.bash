@@ -1,36 +1,35 @@
 #!/usr/bin/env bash
 
 _snc_completion() {
-    local cur prev opts
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    cur="${COMP_WORDS[COMP_CWORD]}"
+    local opts
+    opts=(
+        -h --help
+        -r --receive
+        -t --transmit
+        -p --port
+        --print-interfaces
+        --print-peer-info
+        --print-progress
+    )
 
-    # Clear the completion reply.
-    COMPREPLY=()
+    # These options expect an extra parameter. If the previous option ('$3') was
+    # one of these, don't show completion.
+    case "$3" in
+        -p | --port | -t | --transmit)
+            return
+    esac
 
-    # These options expect an extra parameter. If the previous option was one of
-    # these, don't show completion.
-    for i in "-p" "--port" "-t" "--transmit"; do
-        if [ "$prev" == "$i" ]; then
-            return 0
-        fi
-    done
+    # If the current option ('$2') starts with a dash, return (in '$COMPREPLY')
+    # the possible completions for the current option using 'compgen'.
+    case "$2" in
+        -*)
+            mapfile -t COMPREPLY < <(compgen -W "${opts[*]}" -- "$2")
+            ;;
 
-    # Get the full option list.
-    #
-    # TODO: Remove options (both short and long versions) that are already in
-    # `COMP_WORDS'.
-    opts=""
-    opts+="-h --help "
-    opts+="-r --receive "
-    opts+="-t --transmit "
-    opts+="-p --port "
-    opts+="--print-interfaces "
-    opts+="--print-peer-info "
-    opts+="--print-progress"
-
-    # Get the available options for the current command.
-    COMPREPLY+=( $(compgen -W "${opts}" -- ${cur}) )
+        *)
+            compopt -o bashdefault -o default
+            ;;
+    esac
 }
 
 complete -F _snc_completion snc
