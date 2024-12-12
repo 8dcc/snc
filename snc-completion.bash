@@ -12,24 +12,25 @@ _snc_completion() {
         --print-progress
     )
 
-    # These options expect an extra parameter. If the previous option ('$3') was
-    # one of these, don't show completion.
+    # Check the the previous option ('$3') for special values or options.
     case "$3" in
-        -p | --port | -t | --transmit)
+        '2>' | '>' | '<')
+            # If it was a redirector, show the default file completion.
+            compopt -o bashdefault -o default
             return
+            ;;
+
+        '-p' | '--port' | '-t' | '--transmit')
+            # These options expect an extra parameter, so don't show completion.
+            return
+            ;;
     esac
 
     # If the current option ('$2') starts with a dash, return (in '$COMPREPLY')
     # the possible completions for the current option using 'compgen'.
-    case "$2" in
-        -*)
-            mapfile -t COMPREPLY < <(compgen -W "${opts[*]}" -- "$2")
-            ;;
-
-        *)
-            compopt -o bashdefault -o default
-            ;;
-    esac
+    if [[ "$2" =~ -* ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "${opts[*]}" -- "$2")
+    fi
 }
 
 complete -F _snc_completion snc
