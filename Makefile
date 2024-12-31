@@ -7,12 +7,11 @@ SRC=main.c util.c receive.c transmit.c
 OBJ=$(addprefix obj/, $(addsuffix .o, $(SRC)))
 
 BIN=snc
+COMPLETION=snc-completion.bash
 
-PREFIX=/usr/local
-BINDIR=$(PREFIX)/bin
-
-COMPLETIONFILE=snc-completion.bash
-COMPLETIONDIR=/etc/bash_completion.d
+PREFIX=/usr
+BINDIR=$(PREFIX)/local/bin
+COMPLETIONDIR=$(PREFIX)/share/bash-completion/completions
 
 #-------------------------------------------------------------------------------
 
@@ -30,9 +29,9 @@ install-bin: $(BIN)
 	@mkdir -p $(BINDIR)
 	install -m 755 $^ $(BINDIR)
 
-install-completion: $(COMPLETIONFILE)
+install-completion: $(COMPLETION)
 	@mkdir -p $(COMPLETIONDIR)
-	install -m 644 $^ $(COMPLETIONDIR)
+	install -m 644 $^ $(COMPLETIONDIR)/$(BIN)
 
 #-------------------------------------------------------------------------------
 
