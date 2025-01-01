@@ -3,10 +3,9 @@
 #+OPTIONS: toc:nil
 #+STARTUP: showeverything
 
-Simple =netcat(1)= alternative in C using sockets.
+Simple =netcat(1)= and =ncat(1)= alternative over TCP.
 
-Some interesting resources about networking:
-- [[https://beej.us/guide/bgnet/][Beej's Guide to Network Programming]], available for free in multiple formats.
+See also my [[https://8dcc.github.io/programming/netref.html][C Network Programming Reference]].
 
 * Building
 
@@ -81,3 +80,6 @@ It will send it to the receiver.
 
 $ snc -t "IP" < input.txt
 #+end_src
+
+You may specify a port when receiving and transmitting data, so you can connect
+to an [[https://nmap.org/ncat/][ncat]] instance by using its port (by default 31337).
