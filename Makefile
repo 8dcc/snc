@@ -9,8 +9,8 @@ OBJ=$(addprefix obj/, $(addsuffix .o, $(SRC)))
 BIN=snc
 COMPLETION=snc-completion.bash
 
-PREFIX=/usr
-BINDIR=$(PREFIX)/local/bin
+PREFIX=/usr/local
+BINDIR=$(PREFIX)/bin
 COMPLETIONDIR=$(PREFIX)/share/bash-completion/completions
 
 #-------------------------------------------------------------------------------
@@ -26,12 +26,10 @@ clean:
 install: install-bin install-completion
 
 install-bin: $(BIN)
-	@mkdir -p $(BINDIR)
-	install -m 755 $^ $(BINDIR)
+	install -D -m 755 $^ $(BINDIR)
 
 install-completion: $(COMPLETION)
-	@mkdir -p $(COMPLETIONDIR)
-	install -m 644 $^ $(COMPLETIONDIR)/$(BIN)
+	install -D -m 644 $^ $(COMPLETIONDIR)/$(BIN)
 
 #-------------------------------------------------------------------------------
 
