@@ -50,7 +50,7 @@ void print_interface_list(FILE* fp) {
 
     for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         /* Ignore non-INET address families and loopback interfaces */
-        if (ifa->ifa_addr->sa_family != AF_INET ||
+        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET ||
             (ifa->ifa_flags & IFF_LOOPBACK) != 0)
             continue;
 
