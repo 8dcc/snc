@@ -26,7 +26,7 @@ clean:
 install: install-bin install-completion
 
 install-bin: $(BIN)
-	install -D -m 755 $^ $(BINDIR)
+	install -D -m 755 $^ -t $(BINDIR)
 
 install-completion: $(COMPLETION)
 	install -D -m 644 $^ $(COMPLETIONDIR)/$(BIN)
