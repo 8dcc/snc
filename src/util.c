@@ -160,16 +160,12 @@ void print_partial_progress(const char* verb, size_t progress) {
     static size_t last_progress       = 0;
 
     /*
-     * Calculate the current progress, and check if it changed enough for us to
-     * print it.
+     * If the current progress changed enough, print it. Then, save the current
+     * progress in a `last_progress' static variable for future calls.
      */
     if (progress < last_progress * PROGRESS_STEP)
         return;
 
     print_progress(verb, progress);
-
-    /*
-     * Store the values for future calls.
-     */
     last_progress = progress;
 }
