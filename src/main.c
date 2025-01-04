@@ -16,11 +16,14 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <signal.h>
 
 #include "include/util.h"
 #include "include/receive.h"
@@ -30,16 +33,23 @@
 
 /*
  * Globals used for program arguments. A description can be found inside each
- * entry of the 'g_options' array.
+ * entry of the 'g_options' array below.
  */
-static bool g_opt_help             = false;
-static bool g_opt_receive          = false;
-static bool g_opt_transmit         = false;
-static char* g_param_transmit      = NULL;
-static char* g_param_port          = "1337";
-bool g_opt_print_interfaces = false;
-bool g_opt_print_peer_info  = false;
-bool g_opt_print_progress   = false;
+static bool g_opt_help        = false;
+static bool g_opt_receive     = false;
+static bool g_opt_transmit    = false;
+static char* g_param_transmit = NULL;
+static char* g_param_port     = "1337";
+bool g_opt_print_interfaces   = false;
+bool g_opt_print_peer_info    = false;
+bool g_opt_print_progress     = false;
+
+/*
+ * True if the user signaled that he wants to quit.
+ */
+bool g_signaled_quit = false;
+
+/*----------------------------------------------------------------------------*/
 
 struct ProgramOption {
     /*
@@ -130,8 +140,6 @@ static struct ProgramOption g_options[] = {
     },
 };
 
-/*----------------------------------------------------------------------------*/
-
 /*
  * Return a pointer to the specified `option' inside `g_options'. Returns NULL
  * if not found.
@@ -217,12 +225,55 @@ static void print_usage(FILE* fp, const char* self) {
 /*----------------------------------------------------------------------------*/
 
 /*
- * TODO: Handle `SIGINT', send remaining data and close connections.
+ * Handler for quit signals (e.g. `SIGINT' or `SIGQUIT').
+ *
+ * We simply store that the user wants to quit, and then restore the default
+ * handler of the signal we received. This is probably not even necessary, since
+ * interrupted calls to `recv' and `send' return `EINTR' according to the
+ * signal(7) man page.
  */
+static void quit_signal_handler(int sig) {
+    g_signaled_quit = true;
+    signal(sig, SIG_DFL);
+}
+
+static void setup_quit_signal_handler(int sig) {
+    struct sigaction act;
+
+    if (sigaction(sig, NULL, &act) == -1)
+        DIE("Failed to read signal action for '%s': %s",
+            strsignal(sig),
+            strerror(errno));
+
+    /*
+     * Unset the `SA_RESTART' flag, so system calls (like `accept', `recv',
+     * etc.) return `EINTR' when the signal is received. See also the
+     * sigaction(2) and signal(7) man pages.
+     */
+    act.sa_flags &= ~SA_RESTART;
+
+    /*
+     * Setup the signal handler itself. We also to make sure that the
+     * `SA_SIGINFO' flag is not set, since it means that our handler takes 3
+     * arguments, which is not the case.
+     */
+    act.sa_flags &= ~SA_SIGINFO;
+    act.sa_handler = quit_signal_handler;
+
+    if (sigaction(sig, &act, NULL) == -1)
+        DIE("Failed to set signal action for '%s': %s",
+            strsignal(sig),
+            strerror(errno));
+}
+
+/*----------------------------------------------------------------------------*/
 
 int main(int argc, char** argv) {
     parse_args(argc, argv);
     validate_global_opts();
+
+    setup_quit_signal_handler(SIGINT);
+    setup_quit_signal_handler(SIGQUIT);
 
     if (g_opt_help) {
         print_usage(stdout, argc >= 1 ? argv[0] : "snc");

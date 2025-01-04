@@ -16,8 +16,8 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stddef.h>
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -147,7 +147,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      */
     char buf[BUF_SZ];
     size_t total_received = 0;
-    for (;;) {
+    while (!g_signaled_quit) {
         const ssize_t received = recv(sockfd_connection, buf, sizeof(buf), 0);
         if (received < 0)
             DIE("Receive error: %s", strerror(errno));

@@ -16,9 +16,9 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -104,7 +104,7 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     char buf[BUF_SZ];
     size_t buf_pos           = 0;
     size_t total_transmitted = 0;
-    while ((c = fgetc(src_fp)) != EOF) {
+    while ((c = fgetc(src_fp)) != EOF && !g_signaled_quit) {
         buf[buf_pos++] = c;
 
         /*
