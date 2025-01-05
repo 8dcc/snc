@@ -23,7 +23,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef NO_SIGNAL_HANDLING
 #include <signal.h>
+#endif
 
 #include "include/util.h"
 #include "include/receive.h"
@@ -224,6 +226,7 @@ static void print_usage(FILE* fp, const char* self) {
 
 /*----------------------------------------------------------------------------*/
 
+#ifndef NO_SIGNAL_HANDLING
 /*
  * Handler for quit signals (e.g. `SIGINT' or `SIGQUIT').
  *
@@ -269,6 +272,7 @@ static void setup_quit_signal_handler(int sig) {
             strsignal(sig),
             strerror(errno));
 }
+#endif
 
 /*----------------------------------------------------------------------------*/
 
@@ -276,8 +280,10 @@ int main(int argc, char** argv) {
     parse_args(argc, argv);
     validate_global_opts();
 
+#ifndef NO_SIGNAL_HANDLING
     setup_quit_signal_handler(SIGINT);
     setup_quit_signal_handler(SIGQUIT);
+#endif
 
     if (g_opt_help) {
         print_usage(stdout, argc >= 1 ? argv[0] : "snc");
