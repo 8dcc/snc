@@ -237,6 +237,10 @@ static void quit_signal_handler(int sig) {
     signal(sig, SIG_DFL);
 }
 
+/*
+ * Setup our "quit" handler for the specified signal, so that it also interrupts
+ * system calls like `accept', `recv' and `send'.
+ */
 static void setup_quit_signal_handler(int sig) {
     struct sigaction act;
 
