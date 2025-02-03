@@ -32,31 +32,31 @@ The help can be shown with the =--help= option.
 
 #+begin_src console
 $ snc --help
-Usage: ./snc [OPTION]...
+Usage: snc [OPTION...]
 
-List of options:
-  -h, --help
-    Print the help to 'stdout' and exit.
+ Mode arguments
+  -r, --receive              Receive data from incoming transmitters.
+  -t, --transmit=DESTINATION Transmit data into the DESTINATION receiver.
 
-  -r, --receive
-    Receive data from incoming transmitters.
+ Optional arguments
+  -p, --port=PORT            Specify the port for receiving or transferring
+                             data.
 
-  -t, --transmit TARGET
-    Transmit data into the TARGET receiver.
+      --print-interfaces     When receiving data, print the list of local
+                             interfaces, along with their addresses. Useful
+                             when receiving data over a LAN.
+      --print-peer-info      When receiving data, print the peer information
+                             whenever a connection is accepted.
+      --print-progress       Print the size of the received or transmitted data
+                             to 'stderr'.
 
-  -p, --port PORT
-    Specify the port for receiving or transferring data.
+  -?, --help                 Give this help list
+      --usage                Give a short usage message
 
-  --print-interfaces
-    When receiving data, print the list of local interfaces, along with
-    their addresses. Useful when receiving data over a LAN.
+Mandatory or optional arguments to long options are also mandatory or optional
+for any corresponding short options.
 
-  --print-peer-info
-    When receiving data, print the peer information whenever a connection
-    is accepted.
-
-  --print-progress
-    Print the size of the received or transmitted data to 'stderr'.
+Report bugs to <8dcc.git@gmail.com>.
 #+end_src
 
 To receive data from another machine, start the program in /receive/ mode. It will
