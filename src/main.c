@@ -19,7 +19,6 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -28,201 +27,23 @@
 #endif
 
 #include "include/util.h"
+#include "include/args.h"
 #include "include/receive.h"
 #include "include/transmit.h"
 
 /*----------------------------------------------------------------------------*/
 
 /*
- * Globals used for program arguments. A description can be found inside each
- * entry of the 'g_options' array below.
+ * Globals set depending on command-line arguments.
  */
-static bool g_opt_help        = false;
-static bool g_opt_receive     = false;
-static bool g_opt_transmit    = false;
-static char* g_param_transmit = NULL;
-static char* g_param_port     = "1337";
-bool g_opt_print_interfaces   = false;
-bool g_opt_print_peer_info    = false;
-bool g_opt_print_progress     = false;
+bool g_opt_print_interfaces = false;
+bool g_opt_print_peer_info  = false;
+bool g_opt_print_progress   = false;
 
 /*
  * True if the user signaled that he wants to quit.
  */
 bool g_signaled_quit = false;
-
-/*----------------------------------------------------------------------------*/
-
-struct ProgramOption {
-    /*
-     * If an element of `argv' matches the `opt_short' (e.g. "-r") or `opt_long'
-     * members (e.g. "--transmit"), then the `opt_ptr' member is set to `true'
-     * (as long as it's not NULL).
-     *
-     * The `opt_short' and `opt_ptr' members can be NULL, but the `opt_long'
-     * member is mandatory.
-     */
-    bool* opt_ptr;
-    const char* opt_short;
-    const char* opt_long;
-
-    /*
-     * If the current option is found in `argv', and the `param' member is not
-     * NULL, the `param_ptr' member will be set to the next element in `argv'.
-     *
-     * The `param' string will only be used when printing the program usage.
-     */
-    const char* param;
-    char** param_ptr;
-
-    /*
-     * Description for the current option, used when printing the program usage.
-     */
-    const char* description;
-};
-
-static struct ProgramOption g_options[] = {
-    {
-      &g_opt_help,
-      "-h",
-      "--help",
-      NULL,
-      NULL,
-      "Print the help to 'stdout' and exit.",
-    },
-    {
-      &g_opt_receive,
-      "-r",
-      "--receive",
-      NULL,
-      NULL,
-      "Receive data from incoming transmitters.",
-    },
-    {
-      &g_opt_transmit,
-      "-t",
-      "--transmit",
-      "TARGET",
-      &g_param_transmit,
-      "Transmit data into the TARGET receiver.",
-    },
-    {
-      NULL,
-      "-p",
-      "--port",
-      "PORT",
-      &g_param_port,
-      "Specify the port for receiving or transferring data.",
-    },
-    {
-      &g_opt_print_interfaces,
-      NULL,
-      "--print-interfaces",
-      NULL,
-      NULL,
-      "When receiving data, print the list of local interfaces, along with \n"
-      "their addresses. Useful when receiving data over a LAN.",
-    },
-    {
-      &g_opt_print_peer_info,
-      NULL,
-      "--print-peer-info",
-      NULL,
-      NULL,
-      "When receiving data, print the peer information whenever a connection\n"
-      "is accepted.",
-    },
-    {
-      &g_opt_print_progress,
-      NULL,
-      "--print-progress",
-      NULL,
-      NULL,
-      "Print the size of the received or transmitted data to 'stderr'.",
-    },
-};
-
-/*
- * Return a pointer to the specified `option' inside `g_options'. Returns NULL
- * if not found.
- */
-static inline struct ProgramOption* get_option(const char* option) {
-    for (size_t i = 0; i < LENGTH(g_options); i++)
-        if ((g_options[i].opt_short != NULL &&
-             !strcmp(option, g_options[i].opt_short)) ||
-            !strcmp(option, g_options[i].opt_long))
-            return &g_options[i];
-
-    return NULL;
-}
-
-/*
- * Parse the command-line arguments, setting the appropriate globals according
- * to the `g_options' array.
- */
-static void parse_args(int argc, char** argv) {
-    for (int i = 1; i < argc; i++) {
-        const struct ProgramOption* cur_option = get_option(argv[i]);
-        if (cur_option == NULL)
-            DIE("Error: Unknown option '%s'.", argv[i]);
-
-        if (cur_option->opt_ptr != NULL)
-            *(cur_option->opt_ptr) = true;
-
-        /*
-         * If this option expects an additional parameter, make sure that
-         * this is not the last element of `argv', and store it.
-         */
-        if (cur_option->param != NULL) {
-            i++;
-            if (i >= argc)
-                DIE("Error: Option '%s' expects a '%s' parameter.",
-                    argv[i - 1],
-                    cur_option->param);
-
-            assert(cur_option->param_ptr != NULL);
-            *(cur_option->param_ptr) = argv[i];
-        }
-    }
-}
-
-/*
- * Validate that there current option combination is valid.
- */
-static inline void validate_global_opts(void) {
-    if (g_opt_receive && g_opt_transmit)
-        DIE("Error: Can't receive and transmit at the same time.");
-}
-
-/*
- * List the available command-line arguments.
- */
-static void print_usage(FILE* fp, const char* self) {
-    fprintf(fp,
-            "Usage: %s [OPTION]...\n\n"
-            "List of options:",
-            self);
-
-    /*
-     * For each option, print:
-     *   1. The short option (if any).
-     *   2. The long option with its extra parameter (if any).
-     *   3. The description, in its own line.
-     */
-    for (size_t i = 0; i < LENGTH(g_options); i++) {
-        fprintf(fp, "\n  ");
-
-        if (g_options[i].opt_short != NULL)
-            fprintf(fp, "%s, ", g_options[i].opt_short);
-
-        fprintf(fp, "%s", g_options[i].opt_long);
-        if (g_options[i].param != NULL)
-            fprintf(fp, " %s", g_options[i].param);
-        fputc('\n', fp);
-
-        print_indentated(fp, 4, g_options[i].description);
-    }
-}
 
 /*----------------------------------------------------------------------------*/
 
@@ -277,22 +98,30 @@ static void setup_quit_signal_handler(int sig) {
 /*----------------------------------------------------------------------------*/
 
 int main(int argc, char** argv) {
-    parse_args(argc, argv);
-    validate_global_opts();
+    struct Args args;
+    args_init(&args);
+    args_parse(argc, argv, &args);
+
+    g_opt_print_interfaces = args.print_interfaces;
+    g_opt_print_peer_info  = args.print_peer_info;
+    g_opt_print_progress   = args.print_progress;
 
 #ifndef NO_SIGNAL_HANDLING
     setup_quit_signal_handler(SIGINT);
     setup_quit_signal_handler(SIGQUIT);
 #endif
 
-    if (g_opt_help) {
-        print_usage(stdout, argc >= 1 ? argv[0] : "snc");
-    } else if (g_opt_receive) {
-        snc_receive(g_param_port, stdout);
-    } else if (g_opt_transmit) {
-        snc_transmit(stdin, g_param_transmit, g_param_port);
-    } else {
-        DIE("Error: Not enough arguments. Expected a mode option.");
+    switch (args.mode) {
+        case ARGS_MODE_RECEIVE:
+            snc_receive(args.port, stdout);
+            break;
+
+        case ARGS_MODE_TRANSMIT:
+            snc_transmit(stdin, args.destination, args.port);
+            break;
+
+        case ARGS_MODE_NONE:
+            abort(); /* Should have been validated in 'args_parse' */
     }
 
     return 0;
