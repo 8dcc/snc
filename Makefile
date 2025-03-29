@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS=-std=gnu99 -Wall -Wextra -Wpedantic
+CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -Wshadow
 LDLIBS=
 
 SRC=main.c util.c args.c receive.c transmit.c

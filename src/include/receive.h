@@ -19,6 +19,8 @@
 #ifndef RECEIVE_H_
 #define RECEIVE_H_ 1
 
+#include <stdio.h> /* FILE */
+
 /*
  * Main function for the "receive" mode.
  *

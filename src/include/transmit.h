@@ -19,6 +19,8 @@
 #ifndef TRANSMIT_H_
 #define TRANSMIT_H_ 1
 
+#include <stdio.h> /* FILE */
+
 /*
  * Main function for the "transmit" mode.
  *

@@ -16,6 +16,13 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * TODO: Even when defining '_POSIX_C_SOURCE' or '_XOPEN_SOURCE', 'IFF_LOOPBACK'
+ * and 'NI_MAXHOST' are not recognized in C99, although I don't think this is
+ * documented.
+ */
+#define _GNU_SOURCE
+
 #include <stddef.h>
 #include <stdio.h> /* fprintf(), fputc(), etc. */
 

@@ -16,6 +16,8 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
