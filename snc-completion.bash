@@ -7,6 +7,7 @@ _snc_completion() {
         -r --receive
         -t --transmit
         -p --port
+        --block-size
         --print-interfaces
         --print-peer-info
         --print-progress
@@ -20,7 +21,7 @@ _snc_completion() {
             return
             ;;
 
-        '-p' | '--port' | '-t' | '--transmit')
+        '-t' | '--transmit' | '-p' | '--port' | --block-size)
             # These options expect an extra parameter, so don't show completion.
             return
             ;;
@@ -28,7 +29,7 @@ _snc_completion() {
 
     # If the current option ('$2') starts with a dash, return (in '$COMPREPLY')
     # the possible completions for the current option using 'compgen'.
-    if [[ "$2" =~ -* ]]; then
+    if [[ "$2" = -* ]]; then
         mapfile -t COMPREPLY < <(compgen -W "${opts[*]}" -- "$2")
     fi
 }
