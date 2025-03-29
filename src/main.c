@@ -42,6 +42,10 @@ bool g_opt_print_interfaces = false;
 bool g_opt_print_peer_info  = false;
 bool g_opt_print_progress   = false;
 
+#ifndef FIXED_BLOCK_SIZE
+size_t g_opt_block_size = 0x1000;
+#endif
+
 /*
  * True if the user signaled that he wants to quit.
  */
@@ -107,6 +111,10 @@ int main(int argc, char** argv) {
     g_opt_print_interfaces = args.print_interfaces;
     g_opt_print_peer_info  = args.print_peer_info;
     g_opt_print_progress   = args.print_progress;
+
+#ifndef FIXED_BLOCK_SIZE
+    g_opt_block_size = args.block_size;
+#endif
 
 #ifndef NO_SIGNAL_HANDLING
     setup_quit_signal_handler(SIGINT);

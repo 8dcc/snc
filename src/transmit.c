@@ -35,14 +35,6 @@
 
 /*----------------------------------------------------------------------------*/
 
-/*
- * Size of the buffer used when reading and sending data. Independent of the
- * buffer size for receiving/writing in "receive.c".
- */
-#define BUF_SZ 1000
-
-/*----------------------------------------------------------------------------*/
-
 static bool send_data(int sockfd, void* data, size_t data_sz) {
     size_t total_sent = 0;
 
@@ -99,11 +91,20 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     if (status != 0)
         DIE("Connection error: %s", strerror(errno));
 
+#ifdef FIXED_BLOCK_SIZE
+    const size_t buf_sz = FIXED_BLOCK_SIZE;
+    static char buf[FIXED_BLOCK_SIZE];
+#else  /* not FIXED_BLOCK_SIZE */
+    const size_t buf_sz = g_opt_block_size;
+    char* buf           = malloc(buf_sz);
+    if (buf == NULL)
+        DIE("Failed to allocate %zu bytes: %s", buf_sz, strerror(errno));
+#endif /* not FIXED_BLOCK_SIZE */
+
     /*
      * Read characters from `stdin', and write them to `sockfd'.
      */
     int c;
-    char buf[BUF_SZ];
     size_t buf_pos           = 0;
     size_t total_transmitted = 0;
     while ((c = fgetc(src_fp)) != EOF && !g_signaled_quit) {
@@ -113,7 +114,7 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
          * If the buffer is full, send the data in the buffer, and reset the
          * buffer position.
          */
-        if (buf_pos >= BUF_SZ) {
+        if (buf_pos >= buf_sz) {
             if (!send_data(sockfd, buf, buf_pos))
                 DIE("Send error: %s", strerror(errno));
 

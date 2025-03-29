@@ -40,12 +40,6 @@
  */
 #define SNC_LISTEN_QUEUE_SZ 10
 
-/*
- * Size of the buffer used when receiving and writing data. Independent of the
- * buffer size for reading/sending in 'transmit.c'.
- */
-#define BUF_SZ 1000
-
 /*----------------------------------------------------------------------------*/
 
 void snc_receive(const char* src_port, FILE* dst_fp) {
@@ -142,15 +136,24 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         print_separator(stderr);
     }
 
+#ifdef FIXED_BLOCK_SIZE
+    const size_t buf_sz = FIXED_BLOCK_SIZE;
+    static char buf[FIXED_BLOCK_SIZE];
+#else  /* not FIXED_BLOCK_SIZE */
+    const size_t buf_sz = g_opt_block_size;
+    char* buf           = malloc(buf_sz);
+    if (buf == NULL)
+        DIE("Failed to allocate %zu bytes: %s", buf_sz, strerror(errno));
+#endif /* not FIXED_BLOCK_SIZE */
+
     /*
      * Receive the data from the connection. Note how we use the connection
      * socket descriptor (returned by `accept'), not the socket descriptor used
      * for listening for new connections (returned by `socket').
      */
-    char buf[BUF_SZ];
     size_t total_received = 0;
     while (!g_signaled_quit) {
-        const ssize_t received = recv(sockfd_connection, buf, sizeof(buf), 0);
+        const ssize_t received = recv(sockfd_connection, buf, buf_sz, 0);
         if (received < 0)
             DIE("Receive error: %s", strerror(errno));
         if (received == 0)

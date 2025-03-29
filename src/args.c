@@ -33,7 +33,8 @@ const char* argp_program_bug_address = "<8dcc.git@gmail.com>";
  * (e.g. '--print-interfaces', etc.).
  */
 enum ELongOptionIds {
-    LONGOPT_PRINT_INTERFACES = 256,
+    LONGOPT_BLOCK_SIZE = 256,
+    LONGOPT_PRINT_INTERFACES,
     LONGOPT_PRINT_PEER_INFO,
     LONGOPT_PRINT_PROGRESS,
 };
@@ -67,6 +68,15 @@ static struct argp_option options[] = {
       "PORT",
       0,
       "Specify the port for receiving or transferring data.",
+      2,
+    },
+    {
+      "block-size",
+      LONGOPT_BLOCK_SIZE,
+      "BYTES",
+      0,
+      "Specify the block size used when receiving or transfering data. Used "
+      "for read/write system calls.",
       2,
     },
     {
@@ -111,19 +121,34 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
         case 'r':
             args->mode = ARGS_MODE_RECEIVE;
             break;
+
         case 't':
             args->mode        = ARGS_MODE_TRANSMIT;
             args->destination = arg;
             break;
+
         case 'p':
             args->port = arg;
             break;
+
+        case LONGOPT_BLOCK_SIZE:
+            if (sscanf(arg, "%zu", &args->block_size) != 1 ||
+                args->block_size <= 0) {
+                fprintf(state->err_stream,
+                        "%s: Invalid block size.\n",
+                        state->name);
+                argp_usage(state);
+            }
+            break;
+
         case LONGOPT_PRINT_INTERFACES:
             args->print_interfaces = true;
             break;
+
         case LONGOPT_PRINT_PEER_INFO:
             args->print_peer_info = true;
             break;
+
         case LONGOPT_PRINT_PROGRESS:
             args->print_progress = true;
             break;
@@ -132,7 +157,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
             /* Did the user specify one of the "mode" arguments? */
             if (args->mode == ARGS_MODE_NONE) {
                 fprintf(state->err_stream,
-                        "snc: Expected a mode option.\n");
+                        "%s: Expected a mode option.\n",
+                        state->name);
                 argp_usage(state);
             }
             break;
@@ -148,6 +174,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
 void args_init(struct Args* args) {
     args->mode             = ARGS_MODE_NONE;
     args->port             = "1337";
+    args->block_size       = 0x1000;
     args->print_interfaces = false;
     args->print_peer_info  = false;
     args->print_progress   = false;

@@ -18,6 +18,7 @@
 #define ARGS_H_ 1
 
 #include <stdbool.h>
+#include <stddef.h>
 
 /*
  * Available program modes, used in 'Args.mode'.
@@ -38,6 +39,7 @@ struct Args {
 
     /* Optional arguments */
     const char* port;
+    size_t block_size;
     bool print_interfaces, print_peer_info, print_progress;
 
     /* Only set if 'mode' is 'ARGS_MODE_TRANSMIT' */
