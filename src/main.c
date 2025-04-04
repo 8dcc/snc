@@ -29,6 +29,7 @@
 #endif
 
 #include "include/util.h"
+#include "include/main.h"
 #include "include/args.h"
 #include "include/receive.h"
 #include "include/transmit.h"
