@@ -144,6 +144,10 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
         fputc('\n', stderr);
     }
 
+#ifndef FIXED_BLOCK_SIZE
+    free(buf);
+#endif /* not FIXED_BLOCK_SIZE */
+
     /*
      * Close the socket descriptor, and free the linked list of `addrinfo'
      * structures that `getaddrinfo' allocated.

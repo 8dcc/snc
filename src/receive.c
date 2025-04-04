@@ -176,6 +176,10 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         fputc('\n', stderr);
     }
 
+#ifndef FIXED_BLOCK_SIZE
+    free(buf);
+#endif /* not FIXED_BLOCK_SIZE */
+
     close(sockfd_connection);
     close(sockfd_listen);
     freeaddrinfo(self_info);
