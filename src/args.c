@@ -70,6 +70,7 @@ static struct argp_option options[] = {
       "Specify the port for receiving or transferring data.",
       2,
     },
+#ifndef FIXED_BLOCK_SIZE
     {
       "block-size",
       LONGOPT_BLOCK_SIZE,
@@ -79,6 +80,7 @@ static struct argp_option options[] = {
       "for read/write system calls.",
       2,
     },
+#endif
     {
       "print-interfaces",
       LONGOPT_PRINT_INTERFACES,
@@ -131,6 +133,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
             args->port = arg;
             break;
 
+#ifndef FIXED_BLOCK_SIZE
         case LONGOPT_BLOCK_SIZE:
             if (sscanf(arg, "%zu", &args->block_size) != 1 ||
                 args->block_size <= 0) {
@@ -140,6 +143,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
                 argp_usage(state);
             }
             break;
+#endif
 
         case LONGOPT_PRINT_INTERFACES:
             args->print_interfaces = true;
@@ -174,10 +178,13 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
 void args_init(struct Args* args) {
     args->mode             = ARGS_MODE_NONE;
     args->port             = "1337";
-    args->block_size       = 0x1000;
     args->print_interfaces = false;
     args->print_peer_info  = false;
     args->print_progress   = false;
+
+#ifndef FIXED_BLOCK_SIZE
+    args->block_size = 0x1000;
+#endif
 }
 
 void args_parse(int argc, char** argv, struct Args* args) {
@@ -190,4 +197,8 @@ void args_parse(int argc, char** argv, struct Args* args) {
     assert(args->port != NULL);
     assert(args->mode != ARGS_MODE_NONE);
     assert(args->mode != ARGS_MODE_TRANSMIT || args->destination != NULL);
+
+#ifndef FIXED_BLOCK_SIZE
+    assert(args->block_size > 0);
+#endif
 }

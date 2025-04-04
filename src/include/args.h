@@ -39,8 +39,11 @@ struct Args {
 
     /* Optional arguments */
     const char* port;
-    size_t block_size;
     bool print_interfaces, print_peer_info, print_progress;
+
+#ifndef FIXED_BLOCK_SIZE
+    size_t block_size;
+#endif
 
     /* Only set if 'mode' is 'ARGS_MODE_TRANSMIT' */
     const char* destination;
