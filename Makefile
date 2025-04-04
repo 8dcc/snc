@@ -1,6 +1,6 @@
 
 CC=gcc
-CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -Wshadow
+CFLAGS=-std=c99 -Wall -Wextra -Wpedantic -Wshadow# -ggdb3 -fsanitize=address,leak,undefined
 LDLIBS=
 
 SRC=main.c util.c args.c receive.c transmit.c
