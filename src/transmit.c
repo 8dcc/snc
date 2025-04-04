@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -32,6 +33,13 @@
 #include "include/util.h"
 #include "include/main.h"
 #include "include/transmit.h"
+
+#define CLEANUP_AND_DIE(...)                                                   \
+    do {                                                                       \
+        ERR(__VA_ARGS__);                                                      \
+        fatal_error = true;                                                    \
+        goto cleanup;                                                          \
+    } while (0)
 
 /*----------------------------------------------------------------------------*/
 
@@ -52,7 +60,26 @@ static bool send_data(int sockfd, void* data, size_t data_sz) {
 }
 
 void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
-    int status;
+    /*
+     * The 'status' variable is used to store temporary integer return values.
+     *
+     * If the 'fatal_error' variable is true that the end of the function, the
+     * program will be aborted.
+     */
+    int status       = 0;
+    bool fatal_error = false;
+
+    /*
+     * Variables that need to be cleaned up if their value changes.
+     */
+    struct addrinfo* server_info = NULL;
+    int sockfd                   = -1;
+
+#ifdef FIXED_BLOCK_SIZE
+    static char buf[FIXED_BLOCK_SIZE];
+#else  /* not FIXED_BLOCK_SIZE */
+    char* buf           = NULL;
+#endif /* not FIXED_BLOCK_SIZE */
 
     /*
      * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
@@ -68,20 +95,20 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
     /*
      * Obtain the address information from the specified hints.
      */
-    struct addrinfo* server_info;
     status = getaddrinfo(dst_ip, dst_port, &hints, &server_info);
     if (status != 0)
-        DIE("Could not obtaining address info: %s", gai_strerror(status));
+        CLEANUP_AND_DIE("Could not obtaining address info: %s",
+                        gai_strerror(status));
 
     /*
      * We obtain the socket descriptor using the values from the `addrinfo'
      * structure that `getaddrinfo' filled.
      */
-    const int sockfd = socket(server_info->ai_family,
-                              server_info->ai_socktype,
-                              server_info->ai_protocol);
+    sockfd = socket(server_info->ai_family,
+                    server_info->ai_socktype,
+                    server_info->ai_protocol);
     if (sockfd < 0)
-        DIE("Could not create socket: %s", strerror(errno));
+        CLEANUP_AND_DIE("Could not create socket: %s", strerror(errno));
 
     /*
      * Connect to the actual server. Again, using the values from the `addrinfo'
@@ -89,17 +116,20 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
      */
     status = connect(sockfd, server_info->ai_addr, server_info->ai_addrlen);
     if (status != 0)
-        DIE("Connection error: %s", strerror(errno));
+        CLEANUP_AND_DIE("Connection error: %s", strerror(errno));
 
 #ifdef FIXED_BLOCK_SIZE
     const size_t buf_sz = FIXED_BLOCK_SIZE;
-    static char buf[FIXED_BLOCK_SIZE];
 #else  /* not FIXED_BLOCK_SIZE */
     const size_t buf_sz = g_opt_block_size;
-    char* buf           = malloc(buf_sz);
+    buf                 = malloc(buf_sz);
     if (buf == NULL)
-        DIE("Failed to allocate %zu bytes: %s", buf_sz, strerror(errno));
+        CLEANUP_AND_DIE("Failed to allocate %zu bytes: %s",
+                        buf_sz,
+                        strerror(errno));
 #endif /* not FIXED_BLOCK_SIZE */
+
+    assert(buf_sz > 0);
 
     /*
      * Read characters from `stdin', and write them to `sockfd'.
@@ -116,7 +146,7 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
          */
         if (buf_pos >= buf_sz) {
             if (!send_data(sockfd, buf, buf_pos))
-                DIE("Send error: %s", strerror(errno));
+                CLEANUP_AND_DIE("Send error: %s", strerror(errno));
 
             if (g_opt_print_progress) {
                 total_transmitted += buf_pos;
@@ -132,7 +162,7 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
      * in the buffer (if any).
      */
     if (!send_data(sockfd, buf, buf_pos))
-        DIE("Send error: %s", strerror(errno));
+        CLEANUP_AND_DIE("Send error: %s", strerror(errno));
 
     /*
      * After we are done, we want to print the exact progress. Notice how we
@@ -144,14 +174,20 @@ void snc_transmit(FILE* src_fp, const char* dst_ip, const char* dst_port) {
         fputc('\n', stderr);
     }
 
+cleanup:
 #ifndef FIXED_BLOCK_SIZE
-    free(buf);
+    if (buf != NULL)
+        free(buf);
 #endif /* not FIXED_BLOCK_SIZE */
 
-    /*
-     * Close the socket descriptor, and free the linked list of `addrinfo'
-     * structures that `getaddrinfo' allocated.
-     */
-    close(sockfd);
-    freeaddrinfo(server_info);
+    /* Opened by 'socket' */
+    if (sockfd > -1)
+        close(sockfd);
+
+    /* Allocated by 'getaddrinfo' */
+    if (server_info != NULL)
+        freeaddrinfo(server_info);
+
+    if (fatal_error)
+        exit(1);
 }

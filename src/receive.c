@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -32,6 +33,13 @@
 #include "include/main.h"
 #include "include/receive.h"
 
+#define CLEANUP_AND_DIE(...)                                                   \
+    do {                                                                       \
+        ERR(__VA_ARGS__);                                                      \
+        fatal_error = true;                                                    \
+        goto cleanup;                                                          \
+    } while (0)
+
 /*----------------------------------------------------------------------------*/
 
 /*
@@ -43,7 +51,27 @@
 /*----------------------------------------------------------------------------*/
 
 void snc_receive(const char* src_port, FILE* dst_fp) {
-    int status;
+    /*
+     * The 'status' variable is used to store temporary integer return values.
+     *
+     * If the 'fatal_error' variable is true that the end of the function, the
+     * program will be aborted.
+     */
+    int status       = 0;
+    bool fatal_error = false;
+
+    /*
+     * Variables that need to be cleaned up if their value changes.
+     */
+    struct addrinfo* self_info = NULL;
+    int sockfd_listen          = -1;
+    int sockfd_connection      = -1;
+
+#ifdef FIXED_BLOCK_SIZE
+    static char buf[FIXED_BLOCK_SIZE];
+#else  /* not FIXED_BLOCK_SIZE */
+    char* buf           = NULL;
+#endif /* not FIXED_BLOCK_SIZE */
 
     /*
      * Initialize the `addrinfo' structure with the hints for `getaddrinfo'.
@@ -65,20 +93,20 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      * Note how we use `NULL', along with the `AI_PASSIVE' flag in `hints', to
      * indicate that we want to obtain information about or own IP address.
      */
-    struct addrinfo* self_info;
     status = getaddrinfo(NULL, src_port, &hints, &self_info);
     if (status != 0)
-        DIE("Could not obtaining our address info: %s", gai_strerror(status));
+        CLEANUP_AND_DIE("Could not obtaining our address info: %s",
+                        gai_strerror(status));
 
     /*
      * We obtain the socket descriptor using the values from the `addrinfo'
      * structure that `getaddrinfo' filled.
      */
-    const int sockfd_listen = socket(self_info->ai_family,
-                                     self_info->ai_socktype,
-                                     self_info->ai_protocol);
+    sockfd_listen = socket(self_info->ai_family,
+                           self_info->ai_socktype,
+                           self_info->ai_protocol);
     if (sockfd_listen < 0)
-        DIE("Could not create socket: %s", strerror(errno));
+        CLEANUP_AND_DIE("Could not create socket: %s", strerror(errno));
 
     /*
      * We `bind' the local port to the socket descriptor. The port (along with
@@ -88,7 +116,8 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      */
     status = bind(sockfd_listen, self_info->ai_addr, self_info->ai_addrlen);
     if (status != 0)
-        DIE("Could not bind port to socket descriptor: %s", strerror(errno));
+        CLEANUP_AND_DIE("Could not bind port to socket descriptor: %s",
+                        strerror(errno));
 
     /*
      * We listen for incoming connections on the port we just bound to the
@@ -97,7 +126,8 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      */
     status = listen(sockfd_listen, SNC_LISTEN_QUEUE_SZ);
     if (status != 0)
-        DIE("Could not listen for connections: %s", strerror(errno));
+        CLEANUP_AND_DIE("Could not listen for connections: %s",
+                        strerror(errno));
 
     if (g_opt_print_interfaces) {
         print_separator(stderr);
@@ -122,10 +152,11 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
      */
     struct sockaddr_storage peer_addr;
     socklen_t peer_addr_sz = sizeof(peer_addr);
-    const int sockfd_connection =
+    sockfd_connection =
       accept(sockfd_listen, (struct sockaddr*)&peer_addr, &peer_addr_sz);
     if (sockfd_connection < 0)
-        DIE("Could not accept incoming connection: %s", strerror(errno));
+        CLEANUP_AND_DIE("Could not accept incoming connection: %s",
+                        strerror(errno));
 
     if (g_opt_print_peer_info) {
         if (!g_opt_print_interfaces)
@@ -138,13 +169,16 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
 
 #ifdef FIXED_BLOCK_SIZE
     const size_t buf_sz = FIXED_BLOCK_SIZE;
-    static char buf[FIXED_BLOCK_SIZE];
 #else  /* not FIXED_BLOCK_SIZE */
     const size_t buf_sz = g_opt_block_size;
-    char* buf           = malloc(buf_sz);
+    buf                 = malloc(buf_sz);
     if (buf == NULL)
-        DIE("Failed to allocate %zu bytes: %s", buf_sz, strerror(errno));
+        CLEANUP_AND_DIE("Failed to allocate %zu bytes: %s",
+                        buf_sz,
+                        strerror(errno));
 #endif /* not FIXED_BLOCK_SIZE */
+
+    assert(buf_sz > 0);
 
     /*
      * Receive the data from the connection. Note how we use the connection
@@ -155,7 +189,7 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
     while (!g_signaled_quit) {
         const ssize_t received = recv(sockfd_connection, buf, buf_sz, 0);
         if (received < 0)
-            DIE("Receive error: %s", strerror(errno));
+            CLEANUP_AND_DIE("Receive error: %s", strerror(errno));
         if (received == 0)
             break;
 
@@ -176,11 +210,24 @@ void snc_receive(const char* src_port, FILE* dst_fp) {
         fputc('\n', stderr);
     }
 
+cleanup:
 #ifndef FIXED_BLOCK_SIZE
-    free(buf);
+    if (buf != NULL)
+        free(buf);
 #endif /* not FIXED_BLOCK_SIZE */
 
-    close(sockfd_connection);
-    close(sockfd_listen);
-    freeaddrinfo(self_info);
+    /* Opened by 'accept' */
+    if (sockfd_connection > -1)
+        close(sockfd_connection);
+
+    /* Opened by 'socket' */
+    if (sockfd_listen > -1)
+        close(sockfd_listen);
+
+    /* Allocated by 'getaddrinfo' */
+    if (self_info != NULL)
+        freeaddrinfo(self_info);
+
+    if (fatal_error)
+        exit(1);
 }
