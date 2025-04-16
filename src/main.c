@@ -65,7 +65,13 @@ bool g_signaled_quit = false;
  */
 static void quit_signal_handler(int sig) {
     g_signaled_quit = true;
-    signal(sig, SIG_DFL);
+
+    struct sigaction act;
+    act.sa_handler = SIG_DFL;
+    if (sigaction(sig, &act, NULL) == -1)
+        ERR("Failed to set signal action for '%s': %s",
+            strsignal(sig),
+            strerror(errno));
 }
 
 /*
