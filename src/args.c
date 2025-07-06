@@ -27,14 +27,6 @@
 
 /*----------------------------------------------------------------------------*/
 
-#ifndef COL_BEFORE
-#define COL_BEFORE "\x1B[7m"
-#endif /* COL_BEFORE */
-
-#ifndef COL_AFTER
-#define COL_AFTER "\x1B[0m"
-#endif /* COL_AFTER */
-
 #ifndef VERSION
 #define VERSION NULL
 #endif /* VERSION */
