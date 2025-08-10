@@ -121,6 +121,14 @@ static struct argp_option options[] = {
 
 /*----------------------------------------------------------------------------*/
 
+/*
+ * Callback function used by the Argp library (specifically, by 'argp_parse'
+ * through the 'argp' structure) for parsing each option in the command-line
+ * arguments.
+ *
+ * See:
+ * https://www.gnu.org/software/libc/manual/html_node/Argp-Parser-Functions.html
+ */
 static error_t parse_opt(int key, char* arg, struct argp_state* state) {
     /*
      * Get the 'input' argument from 'argp_parse', which we know is a pointer to
